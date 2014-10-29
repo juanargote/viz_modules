@@ -85,7 +85,7 @@ var visual = (function(){
           d.time = parseDate(d.ts);
         });
 
-        var nest = d3.nest().key(function(d){return d.trip_id + '-' + d.time.toDateString()}).entries(data)
+        var nest = d3.nest().key(function(d){return d.trip_id + '-' + d.vehicle_id}).entries(data)
 
         x.domain( d3.extent(data, function(d) { return d.time; }) );
 
@@ -104,7 +104,7 @@ var visual = (function(){
             .attr("y", 6)
             .attr("dy", ".71em")
             .style("text-anchor", "end")
-            .text("Temperature (ºF)");
+            .text("Postmile");
 
         local.canvas = svg.selectAll(".trajectory").data(nest).enter().append("g")
             .attr("class", "trajectory");
