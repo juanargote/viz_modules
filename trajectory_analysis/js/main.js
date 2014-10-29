@@ -72,9 +72,6 @@ var visual = (function(){
         .x(function(d) { return x(d.time); })
         .y(function(d) { return y(d.stop_postmile); });
 
-    
-
-
     visual.create = function(data){
 
         var svg = d3.select(".output-visual").append("svg")
@@ -88,7 +85,7 @@ var visual = (function(){
           d.time = parseDate(d.ts);
         });
 
-        console.log(data)
+        var nest = d3.nest().key(function(d){return d.trip_id + '-' + d.time.toDateString()}).entries(data)
 
         x.domain( d3.extent(data, function(d) { return d.time; }) );
 
@@ -109,20 +106,12 @@ var visual = (function(){
             .style("text-anchor", "end")
             .text("Temperature (ºF)");
 
-        local.canvas = svg.append("g")
-            .attr("class", "city")
-            .datum(data);
+        local.canvas = svg.selectAll(".trajectory").data(nest).enter().append("g")
+            .attr("class", "trajectory");
 
         local.canvas.append("path")
             .attr("class", "line")
-            .attr("d", function(d) { return line(d); });
-
-        // city.append("text")
-        //     .datum(function(d) { return {name: d.name, value: d.values[d.values.length - 1]}; })
-        //     .attr("transform", function(d) { return "translate(" + x(d.value.date) + "," + y(d.value.temperature) + ")"; })
-        //     .attr("x", 3)
-        //     .attr("dy", ".35em")
-        //     .text(function(d) { return d.name; });
+            .attr("d", function(d) { return line(d.values); });
     }
 
     visual.remove = function(){
