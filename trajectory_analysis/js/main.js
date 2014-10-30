@@ -1,24 +1,26 @@
 $(function(){
-    var format = d3.time.format("%Y-%m-%dT%X+00:00");
-    console.log(format(new Date()))
+    var format = d3.time.format("%Y-%m-%dT%X-07:00");
 
     // Wire the date picker
     $("#datepicker").datepicker().datepicker("setDate", new Date());
 
     $("#getTrajectory").click(function(){
+        console.log(userDetails.agency.timezone)
+        var start_moment = moment.tz($("#datepicker").val(),userDetails.agency.timezone);
+        var start = start_moment.format();
+        var end = start_moment.add(1,'days').format()
         var query_data = {};
-        var start_date = format(new Date(2014,9,24));
-        var end_date = format(new Date(2014,9,25));
-        query_data['ts'] = '[' + start_date + ',' + end_date + ']';
-        query_data['route_id'] = '11-111';
+        query_data['ts'] = '[' + start + ',' + end + ']';
+        query_data['route_id'] = '24473,25200';
         query_data['select'] = ['ts','event_type','stop_postmile','trip_id','delay','vehicle_id'].join();
+        console.log(query_data.ts);
         // Ajax call that retrieves the agency name
         $.ajax({
             type: "GET",
             dataType: "json",
             data: query_data,
             // url: "https://vtfs.v-a.io/" + userDetails.agency.shortname + "/" + "event",
-            url: "https://vtfs.v-a.io/" + 'actransit' + "/" + "event",
+            url: userDetails.agency.apiurl + "event",
             beforeSend: function(request) {
                 request.setRequestHeader('Access-Control-Allow-Headers', 'apikey, Access-Control-Allow-Origin');
                 request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
@@ -44,8 +46,8 @@ var visual = (function(){
     var visual = {}
     var local = {}
 
-    var margin = {top: 20, right: 50, bottom: 30, left: 50},
-        width = 920 - margin.left - margin.right,
+    var margin = {top: 20, right: 50, bottom: 30, left: 70},
+        width = 940 - margin.left - margin.right,
         height = 500 - margin.top - margin.bottom;
 
     var parseDate = d3.time.format("%Y-%m-%d %X+00:00").parse;
