@@ -3,10 +3,9 @@ $(function(){
     console.log(format(new Date()))
 
     // Wire the date picker
-    $( "#datepicker" ).datepicker();
+    $("#datepicker").datepicker().datepicker("setDate", new Date());
+
     $("#getTrajectory").click(function(){
-        console.log($('form').serialize());
-        
         var query_data = {};
         var start_date = format(new Date(2014,9,24));
         var end_date = format(new Date(2014,9,25));
