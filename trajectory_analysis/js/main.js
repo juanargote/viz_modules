@@ -26,9 +26,8 @@ $(function(){
         var end = start_moment.add(1,'days').format()
         var query_data = {};
         query_data['ts'] = '[' + start + ',' + end + ']';
-        query_data['route_id'] = '24473,25200';
+        query_data['route_id'] = $('#routepicker').val();
         query_data['select'] = ['ts','event_type','stop_postmile','trip_id','delay','vehicle_id'].join();
-        console.log(query_data);
         // Ajax call that retrieves the agency name
         $.ajax({
             type: "GET",
