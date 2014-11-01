@@ -143,7 +143,10 @@ var visual = (function(){
           d.time = moment(d.ts, "YYYY-MM-DD HH:mm:ss+Z")._d
         });
         
-        var nest = d3.nest().key(function(d){return d.trip_id + '-' + d.vehicle_id}).entries(data)
+        var nest = d3.nest()
+            .key(function(d){return d.vehicle_id})
+            .key(function(d){return d.trip_id})
+            .entries(data)
 
         x.domain( d3.extent(data, function(d) { return d.time; }) );
 
@@ -164,12 +167,22 @@ var visual = (function(){
             .style("text-anchor", "end")
             .text("Postmile");
 
-        local.canvas = svg.selectAll(".trajectory").data(nest).enter().append("g")
-            .attr("class", "trajectory");
+        local.vehicles = svg.selectAll(".vehicle").data(nest).enter().append("g")
+            .attr("class", "vehicle");
 
-        local.canvas.append("path")
+        local.vehicles.each(function(d){
+            d3.select(this).selectAll(".trip").data(d.values).enter().append("g")
+            .attr("class", "trip");
+        })
+
+        local.vehicles.selectAll(".trip")
+            .append("path")
             .attr("class", "line")
             .attr("d", function(d) { return line(d.values); });
+
+        local.vehicles.each(function(d){
+            d3.select(this).selectAll(".line").style("stroke",color(d.key));
+        })
     }
 
     visual.remove = function(){
