@@ -50,8 +50,6 @@ var visual = (function(){
         width = 940 - margin.left - margin.right,
         height = 500 - margin.top - margin.bottom;
 
-    var parseDate = d3.time.format("%Y-%m-%d %X+00:00").parse;
-
     var x = d3.time.scale()
         .range([0, width]);
 
@@ -83,9 +81,9 @@ var visual = (function(){
 
         data = data.event
         data.forEach(function(d) {
-          d.time = parseDate(d.ts);
+          d.time = moment(d.ts, "YYYY-MM-DD HH:mm:ss+Z")._d
         });
-
+        
         var nest = d3.nest().key(function(d){return d.trip_id + '-' + d.vehicle_id}).entries(data)
 
         x.domain( d3.extent(data, function(d) { return d.time; }) );
