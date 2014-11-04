@@ -135,7 +135,15 @@ var visual = (function(){
         var svg = d3.select(".output-visual").append("svg")
             .attr("width", width + margin.left + margin.right)
             .attr("height", height + margin.top + margin.bottom)
-          .append("g")
+        
+        svg.append("defs").append("clipPath")
+            .attr("id","drawing-area-limits")
+            .append("rect")
+                .attr("width",width)
+                .attr("height",height)
+
+        var drawingArea = svg.append("g")
+            
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
         data = data.event
@@ -148,16 +156,17 @@ var visual = (function(){
             .key(function(d){return d.trip_id})
             .entries(data)
 
-        x.domain( d3.extent(data, function(d) { return d.time; }) );
+        local.dataTimeDomain = d3.extent(data, function(d) { return d.time; })
+        x.domain( local.dataTimeDomain );
 
         y.domain( d3.extent(data, function(d) { return d.stop_postmile }) );
 
-        local.xAxis = svg.append("g")
+        local.xAxis = drawingArea.append("g")
             .attr("class", "x axis")
             .attr("transform", "translate(0," + height + ")")
             .call(xAxis);
 
-        local.yAxis = svg.append("g")
+        local.yAxis = drawingArea.append("g")
             .attr("class", "y axis")
             .call(yAxis)
           .append("text")
@@ -167,7 +176,8 @@ var visual = (function(){
             .style("text-anchor", "end")
             .text("Postmile");
 
-        local.vehicles = svg.selectAll(".vehicle").data(nest).enter().append("g")
+        local.vehicles = drawingArea.selectAll(".vehicle").data(nest).enter().append("g")
+            .attr("clip-path","url(#drawing-area-limits)")
             .attr("class", "vehicle");
 
         local.vehicles.each(function(d){
@@ -184,7 +194,23 @@ var visual = (function(){
             d3.select(this).selectAll(".line").style("stroke",color(d.key));
         })
     
-        var zoomDraw = function(){
+        var zoomDraw = function(){ 
+
+            var leftBoundary = x.domain()[0].getTime() - local.dataTimeDomain[0].getTime()
+            var rightBoundary = x.domain()[1].getTime() - local.dataTimeDomain[1].getTime()
+            
+
+            if (leftBoundary < 0) {
+                x.domain([x.domain()[0] - leftBoundary, x.domain()[1] - leftBoundary])
+                zoom.translate([0, zoom.translate()[1]])
+            }
+
+            
+            if (rightBoundary > 0) {
+                x.domain([x.domain()[0] - rightBoundary, x.domain()[1] - rightBoundary])
+                zoom.translate([x(local.dataTimeDomain[0]), zoom.translate()[1]])    
+            }
+
             local.xAxis.call(xAxis);
             local.vehicles.selectAll(".line").attr("d",function(d) { return line(d.values); })
         }
@@ -192,9 +218,9 @@ var visual = (function(){
         var zoom = d3.behavior.zoom()
             .on("zoom",zoomDraw);
 
-        zoom.x(x);
+        zoom.scaleExtent([1,Infinity]).x(x);
 
-        svg.append('rect')
+        drawingArea.append('rect')
             .attr('class', 'overlay')
             .attr('width', width)
             .attr('height', height)
