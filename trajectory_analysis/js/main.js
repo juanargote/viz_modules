@@ -42,6 +42,32 @@ $(function(){
             success: function(data){
                 console.log(data);
                 visual.create(data)
+                // second data request
+
+                var query_data2 = {};
+                query_data2['route_id'] = $('#routepicker').val();
+                query_data2['select'] = ['trip_id','direction_id','block_id','shape_id'].join();
+                
+                $.ajax({
+                    type: "GET",
+                    dataType: "json",
+                    data: query_data2,
+                    url: userDetails.agency.apiurl + "gtfs_trips",
+                    beforeSend: function(request) {
+                        request.setRequestHeader('Access-Control-Allow-Headers', 'apikey, Access-Control-Allow-Origin');
+                        request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
+                    },
+                    success: function(data){
+                        visual.tripData(data);
+                    },
+                    complete: function(){
+                    },
+                    error: function(jqXHR,textStatus,errorThrown){
+                        console.log(jqXHR)
+                        console.log(errorThrown);
+                    }
+
+                });
             },
             complete: function(){
                 // $(".output-visual").show(1000);
@@ -53,6 +79,8 @@ $(function(){
             }
 
         });
+
+        
     })
 });
 
@@ -150,7 +178,7 @@ var visual = (function(){
         data.forEach(function(d) {
           d.time = moment(d.ts, "YYYY-MM-DD HH:mm:ss+Z")._d
         });
-        
+
         var nest = d3.nest()
             .key(function(d){return d.vehicle_id})
             .key(function(d){return d.trip_id})
@@ -199,13 +227,11 @@ var visual = (function(){
             var leftBoundary = x.domain()[0].getTime() - local.dataTimeDomain[0].getTime()
             var rightBoundary = x.domain()[1].getTime() - local.dataTimeDomain[1].getTime()
             
-
             if (leftBoundary < 0) {
                 x.domain([x.domain()[0] - leftBoundary, x.domain()[1] - leftBoundary])
                 zoom.translate([0, zoom.translate()[1]])
             }
 
-            
             if (rightBoundary > 0) {
                 x.domain([x.domain()[0] - rightBoundary, x.domain()[1] - rightBoundary])
                 zoom.translate([x(local.dataTimeDomain[0]), zoom.translate()[1]])    
@@ -231,6 +257,26 @@ var visual = (function(){
                 'cursor':'pointer',
             })
             .call(zoom);
+    }
+
+    visual.tripData = function(tripData){
+        var TRIPDATA = {}
+        tripData.gtfs_trips.forEach(function(d){
+            TRIPDATA[d.trip_id] = d
+        })
+        local.vehicles.selectAll(".line").each(function(d){
+            try {
+                if (TRIPDATA[d.key].direction_id != 0) {
+                    d3.select(this).attr("stroke-dasharray", "5,5")
+                }    
+            } catch(err) {
+                console.log(d)
+                console.log(TRIPDATA[d.key])
+
+            }
+
+            
+        })
     }
 
     visual.remove = function(){
