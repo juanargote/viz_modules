@@ -183,6 +183,28 @@ var visual = (function(){
         local.vehicles.each(function(d){
             d3.select(this).selectAll(".line").style("stroke",color(d.key));
         })
+    
+        var zoomDraw = function(){
+            local.xAxis.call(xAxis);
+            local.vehicles.selectAll(".line").attr("d",function(d) { return line(d.values); })
+        }
+
+        var zoom = d3.behavior.zoom()
+            .on("zoom",zoomDraw);
+
+        zoom.x(x);
+
+        svg.append('rect')
+            .attr('class', 'overlay')
+            .attr('width', width)
+            .attr('height', height)
+            .style({
+                'fill': 'none',
+                'stroke': 'none',
+                'pointer-events': 'all',
+                'cursor':'pointer',
+            })
+            .call(zoom);
     }
 
     visual.remove = function(){
