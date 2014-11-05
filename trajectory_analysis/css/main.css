@@ -8,10 +8,10 @@ body {
     margin: 0;
 
     font-family: "Helvetica Neue", Helvetica, sans-serif;*/
-    margin: 1em auto 4em auto;
+    /*margin: 1em auto 4em auto;*/
     position: relative;
     tab-size: 2;
-    width: 80%;
+    /*width: 80%;*/
 
     /* IE10 Consumer Preview */ 
     background-image: -ms-radial-gradient(center, circle farthest-corner, #FFFFFF 0%, #DDDDDD 100%);
@@ -32,24 +32,20 @@ body {
     background-image: radial-gradient(circle farthest-corner at center, #FFFFFF 0%, #DDDDDD 100%);
 }
 
-
-.input-form {
-    border: 1px solid black;
-    padding: 15px;
+.navbar {
+    border-radius: 0
 }
 
-.output-visual {
-    display: table;
-    border: 1px solid black;
-    padding: 15px;  
-    margin-top: 15px;
-    width: 100%;
-    text-align: center;
+.tab-pane {
+    background-color: white;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-top-style: none;
 
 }
 
-.output-visual svg {
-    display: inline-block;
+.select2-container-multi .select2-choices .select2-search-choice{
+    margin: 5px 0 3px 5px;
 }
 
 .axis path,

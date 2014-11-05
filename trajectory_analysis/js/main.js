@@ -20,7 +20,8 @@ $(function(){
     get_available_routes();
 
     // Wire the trajectory display button
-    $("#getTrajectory").click(function(){
+    $("#getTrajectory").click(function(event){
+        event.preventDefault();
         var start_moment = moment.tz($("#datepicker").val(),userDetails.agency.timezone);
         var start = start_moment.format();
         var end = start_moment.add(1,'days').format()
@@ -29,6 +30,7 @@ $(function(){
         query_data['route_id'] = $('#routepicker').val();
         query_data['select'] = ['ts','event_type','stop_postmile','trip_id','delay','vehicle_id'].join();
         // Ajax call that retrieves the agency name
+        
         $.ajax({
             type: "GET",
             dataType: "json",
@@ -40,6 +42,7 @@ $(function(){
                 request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
             },
             success: function(data){
+                console.log(query_data)
                 console.log(data);
                 visual.create(data)
                 // second data request
@@ -131,7 +134,7 @@ var visual = (function(){
     var visual = {}
     var local = {}
 
-    var margin = {top: 20, right: 50, bottom: 30, left: 70},
+    var margin = {top: 10, right: 50, bottom: 30, left: 60},
         width = 940 - margin.left - margin.right,
         height = 500 - margin.top - margin.bottom;
 
@@ -158,11 +161,13 @@ var visual = (function(){
 
     visual.create = function(data){
 
-        d3.select(".output-visual svg").remove();
+        d3.select("#red svg").remove();
 
-        var svg = d3.select(".output-visual").append("svg")
+        var svg = d3.select("#red").append("svg")
             .attr("width", width + margin.left + margin.right)
             .attr("height", height + margin.top + margin.bottom)
+            .attr("class","img-responsive center-block")
+            .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
         
         svg.append("defs").append("clipPath")
             .attr("id","drawing-area-limits")
