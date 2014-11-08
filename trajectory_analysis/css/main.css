@@ -36,6 +36,24 @@ body {
     border-radius: 0
 }
 
+button.navbar-toggle.collapsed .icon-bar{
+    background-color: black;
+}
+
+.select2-container .select2-choice {
+    background-color: #fff;
+    background-image:none;
+    height: 32px
+}
+
+span.select2-arrow {
+    display: none !important;
+}
+
+span.select2-chosen {
+    margin-top: 3px;
+}
+
 .tab-pane {
     background-color: white;
     padding: 10px;

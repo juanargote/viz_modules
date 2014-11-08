@@ -10,6 +10,7 @@
     <script type="text/javascript" src="js/moment.js"></script>
     <script type="text/javascript" src="js/bootstrap.min.js"></script>
     <script type="text/javascript" src="js/moment-timezone-with-data-2010-2020.js"></script>
+    <script type="text/javascript" src="js/chosen.jquery.min.js"></script>
     <script src="./select2/select2.js"></script>
     <script type="text/javascript" src="js/main.js"></script>
     <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
@@ -18,10 +19,12 @@
     <link rel="stylesheet" type="text/css" href="select2/select2.css" />
     <link rel="stylesheet" type="text/css" href="select2/select2-bootstrap.css" />
     <link rel="stylesheet" type="text/css" href="css/main.css">
+    <link rel="stylesheet" type="text/css" href="css/chosen.min.css">
   </head>
   <body>
-    <nav class="navbar navbar-inverse" role="navigation">
-      <div class="container-fluid">
+    <div class="container">
+    <nav class="navbar navbar" role="navigation">
+      <div class="container">
         <!-- Brand and toggle get grouped for better mobile display -->
         <div class="navbar-header">
           <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
@@ -39,7 +42,8 @@
             
             <div class="form-group">
               <div class="input-group">
-                <input style="min-width:170px;" type="text" class="form-control" id="routepicker" name="route" placeholder="e.g. 102">
+                <input style="min-width:170px;" type="text" class="form-control" id="routepicker" multiple name="route" placeholder="e.g. 102">
+                </input>
                 <span class="input-group-addon">Route</span>
               </div>
 
@@ -55,6 +59,7 @@
         </div><!-- /.navbar-collapse -->
       </div><!-- /.container-fluid -->
     </nav>
+    </div>
       
       <div class="container">
        
@@ -69,8 +74,7 @@
                   <h3 class="text-center">Trajectories</h3>
               </div>
               <div class="tab-pane" id="orange">
-                  <h3>Layout</h3>
-                  <p>orange orange orange orange orange</p>
+                  <h3 class="text-center">Layout</h3>
               </div>
           </div>
       </div>

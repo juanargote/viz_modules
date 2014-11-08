@@ -6,6 +6,7 @@ $(function(){
     // Wire the date picker
     $("#datepicker").datepicker().datepicker("setDate", new Date());
 
+    // $("#routepicker").chosen()
     // Wire the route selector
     $("#routepicker").select2({
         createSearchChoice:function(term, data) { 
@@ -14,7 +15,7 @@ $(function(){
                 return {id:term, text:term};
             } 
         },
-        multiple: true,
+        multiple: false,
         data: function(){return {results:route_data}}
     });
     get_available_routes();
@@ -45,6 +46,7 @@ $(function(){
                 console.log(query_data)
                 console.log(data);
                 visual.create(data)
+                layout.data(data.event)
                 // second data request
 
                 var query_data2 = {};
@@ -130,11 +132,141 @@ function get_available_routes() {
     });
 }
 
+var layout = (function(){
+    var api = {}
+    var local = {}
+
+    var margin = {top: 10, right: 60, bottom: 30, left: 70},
+        width = 940 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+
+    var x = d3.scale.linear()
+        .range([0, width]);
+
+    var y = d3.scale.ordinal()
+        .rangePoints([height, 0],1);
+
+    var color = d3.scale.category10();
+
+    var xAxis = d3.svg.axis()
+        .scale(x)
+        .orient("bottom");
+
+    var yAxis = d3.svg.axis()
+        .scale(y)
+        .orient("left");
+
+    var line = d3.svg.line()
+        .interpolate("basis")
+        .x(function(d) { return x(d.shape_dist_traveled); }) // postmile
+        .y(function(d) { return y(d.trip_id); }); // 
+
+    var DATA
+
+    var TRIPS_DATA
+
+    var STOPS_DATA
+
+    api.data = function(data){
+        if (!arguments.length) {
+            return {data: DATA, trips: TRIPS_DATA}
+        } else {
+            DATA = data
+            TRIPS_DATA = d3.nest()
+                .key(function(d){return d.trip_id})
+                .entries(data)
+
+            var query_data3 = {};
+            query_data3['trip_id'] = TRIPS_DATA.map(function(d){return d.key}).join();
+            query_data3['select'] = ['trip_id','stop_id','stop_sequence','shape_dist_traveled','arrival_time'].join();
+            
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                data: query_data3,
+                url: userDetails.agency.apiurl + "gtfs_stop_times",
+                beforeSend: function(request) {
+                    request.setRequestHeader('Access-Control-Allow-Headers', 'apikey, Access-Control-Allow-Origin');
+                    request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
+                },
+                success: function(data){
+
+                    x.domain(d3.extent(data.gtfs_stop_times.map(function(d){return d.shape_dist_traveled})))
+
+                    STOPS_DATA = d3.nest()
+                        .key(function(d){ return d.trip_id})
+                        .entries(data.gtfs_stop_times)
+
+                    y.domain(STOPS_DATA.map(function(d){return d.key}))
+                    yAxis.tickValues(y.domain().filter(function(d, i) { return !(i % 5); }))
+                    
+                    console.log(y.domain(), y.range())
+                    api.create()
+                },
+                complete: function(){
+                },
+                error: function(jqXHR,textStatus,errorThrown){
+                    console.log(jqXHR)
+                    console.log(errorThrown);
+                }
+            });       
+        }
+    }
+
+    api.create = function(){
+
+        d3.select("#orange svg").remove();
+
+        local.svg = d3.select("#orange").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .attr("class","img-responsive center-block")
+            .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
+        
+        local.svg.append("defs").append("clipPath")
+            .attr("id","drawing-area-limits")
+            .append("rect")
+                .attr("width",width)
+                .attr("height",height)
+
+        local.drawingArea = local.svg.append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
+        local.xAxis = local.drawingArea.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+
+        local.yAxis = local.drawingArea.append("g")
+            .attr("class", "y axis")
+            .call(yAxis)
+          .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 6)
+            .attr("dy", ".71em")
+            .style("text-anchor", "end")
+            .text("Postmile");
+
+        local.drawingArea.selectAll(".trips").data(STOPS_DATA).enter()
+            .append("g").attr("class","trips")
+                .each(function(d){
+                    d3.select(this).selectAll(".stops").data(d.values).enter()
+                        .append("circle")
+                            .attr("r",2)
+                            .attr("cx", function(dat){return x(dat.shape_dist_traveled)})
+                            .attr("cy", function(dat){return y(dat.trip_id)})
+                })
+    }
+
+    return api
+})();
+
 var visual = (function(){
     var visual = {}
     var local = {}
 
-    var margin = {top: 10, right: 50, bottom: 30, left: 60},
+    var margin = {top: 10, right: 60, bottom: 30, left: 70},
         width = 940 - margin.left - margin.right,
         height = 500 - margin.top - margin.bottom;
 
@@ -176,7 +308,6 @@ var visual = (function(){
                 .attr("height",height)
 
         var drawingArea = svg.append("g")
-            
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
         data = data.event
