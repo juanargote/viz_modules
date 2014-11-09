@@ -1,5 +1,7 @@
 var route_data = [];
 
+var temp = {}
+
 $(function(){
     var format = d3.time.format("%Y-%m-%dT%X-07:00");
 
@@ -43,10 +45,10 @@ $(function(){
                 request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
             },
             success: function(data){
-                console.log(query_data)
-                console.log(data);
-                visual.create(data)
-                layout.data(data.event)
+
+                temp.event = data.event
+                visual.create()
+                
                 // second data request
 
                 var query_data2 = {};
@@ -63,7 +65,9 @@ $(function(){
                         request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
                     },
                     success: function(data){
-                        visual.tripData(data);
+                        temp.gtfs_trips = data.gtfs_trips;
+                        visual.show_direction();
+                        layout.data(data.event)
                     },
                     complete: function(){
                     },
@@ -146,6 +150,9 @@ var layout = (function(){
     var y = d3.scale.ordinal()
         .rangePoints([height, 0],1);
 
+    var yDirection = d3.scale.ordinal()
+        .rangePoints([height, 0],1);
+
     var color = d3.scale.category10();
 
     var xAxis = d3.svg.axis()
@@ -157,9 +164,11 @@ var layout = (function(){
         .orient("left");
 
     var line = d3.svg.line()
-        .interpolate("basis")
+        .interpolate("linear")
         .x(function(d) { return x(d.shape_dist_traveled); }) // postmile
-        .y(function(d) { return y(d.trip_id); }); // 
+        .y(function(d) { return y(d.shape_id); }); // 
+
+    var stop_color = d3.scale.category20();
 
     var DATA
 
@@ -168,13 +177,15 @@ var layout = (function(){
     var STOPS_DATA
 
     api.data = function(data){
+        
+
         if (!arguments.length) {
             return {data: DATA, trips: TRIPS_DATA}
         } else {
-            DATA = data
+            DATA = temp.event
             TRIPS_DATA = d3.nest()
                 .key(function(d){return d.trip_id})
-                .entries(data)
+                .entries(temp.event)
 
             var query_data3 = {};
             query_data3['trip_id'] = TRIPS_DATA.map(function(d){return d.key}).join();
@@ -191,16 +202,20 @@ var layout = (function(){
                 },
                 success: function(data){
 
+                    temp.gtfs_stop_times = data.gtfs_stop_times
                     x.domain(d3.extent(data.gtfs_stop_times.map(function(d){return d.shape_dist_traveled})))
 
                     STOPS_DATA = d3.nest()
                         .key(function(d){ return d.trip_id})
                         .entries(data.gtfs_stop_times)
 
-                    y.domain(STOPS_DATA.map(function(d){return d.key}))
-                    yAxis.tickValues(y.domain().filter(function(d, i) { return !(i % 5); }))
+                    STOPS_LINE = d3.nest()
+                        .key(function(d){ return d.stop_id})
+                        .entries(data.gtfs_stop_times)
+
+                    console.log(STOPS_LINE)
                     
-                    console.log(y.domain(), y.range())
+                    
                     api.create()
                 },
                 complete: function(){
@@ -214,6 +229,43 @@ var layout = (function(){
     }
 
     api.create = function(){
+
+
+        console.log("aligning routes", temp)
+
+        var dictionary_trip_to_direction = {}
+        var dictionary_trip_to_shape = {}
+
+        temp.gtfs_trips.forEach(function(d){
+            dictionary_trip_to_direction[d.trip_id] = d.direction_id
+            dictionary_trip_to_shape[d.trip_id] = d.shape_id
+        })
+
+        temp.gtfs_stop_times.forEach(function(d){
+            d.shape_id = dictionary_trip_to_shape[d.trip_id]
+            d.direction_id = dictionary_trip_to_direction[d.trip_id]
+        })
+
+
+        var stop_trajectories = d3.nest()
+            .key(function(d){return d.direction_id})
+            .key(function(d){return d.shape_id})
+            .key(function(d){return d.stop_id})
+            .rollup(function(d){return d[0]})
+            .entries(temp.gtfs_stop_times)
+        
+
+        STOPS_DATA = d3.nest()
+            .key(function(d){ return d.trip_id})
+            .entries(temp.gtfs_stop_times)
+
+        console.log(stop_trajectories)
+        y.domain(d3.nest()
+            .key(function(d){return d.shape_id})
+            .entries(temp.gtfs_stop_times)
+            .map(function(d){return d.key})
+            )
+        // yAxis.tickValues(y.domain().filter(function(d, i) { return !(i % 5); }))
 
         d3.select("#orange svg").remove();
 
@@ -248,15 +300,54 @@ var layout = (function(){
             .style("text-anchor", "end")
             .text("Postmile");
 
-        local.drawingArea.selectAll(".trips").data(STOPS_DATA).enter()
-            .append("g").attr("class","trips")
-                .each(function(d){
-                    d3.select(this).selectAll(".stops").data(d.values).enter()
-                        .append("circle")
-                            .attr("r",2)
-                            .attr("cx", function(dat){return x(dat.shape_dist_traveled)})
-                            .attr("cy", function(dat){return y(dat.trip_id)})
-                })
+        var direction_g = local.drawingArea.selectAll(".direction").data(stop_trajectories).enter()
+            .append("g").attr("class","direction")
+
+        var shape_g = direction_g.each(function(datum){
+            console.log(datum)
+            d3.select(this).selectAll(".shape").data(datum.values).enter()
+            .append("g").attr("class","shape").selectAll(".stops").data(function(d){return d.values}).enter()
+                .append("circle").attr("class","stops")
+                .attr("r",2)
+                .attr("cx", function(d){return x(d.values.shape_dist_traveled)})
+                .attr("cy", function(d){return y(d.values.shape_id)})
+
+        }).selectAll(".shape")
+        
+        // super_test = direction_g
+
+        //console.log(shape_g.data())
+
+        // var stops_g = shape_g.selectAll(".stops").data(function(d){return d}).enter()
+        //     .append("circle")
+        //     .attr("r",2)
+        //     .attr("cx", function(d){return x(d.value)})
+        //     .attr("cy", function(d){return y(d.key)})
+
+
+
+
+        // local.drawingArea.selectAll(".trips").data(STOPS_DATA).enter()
+        //     .append("g").attr("class","trips")
+        //         .each(function(d){
+        //             d3.select(this).selectAll(".stops").data(d.values).enter()
+        //                 .append("circle")
+        //                     .attr("r",2)
+        //                     .attr("cx", function(dat){return x(dat.shape_dist_traveled)})
+        //                     .attr("cy", function(dat){return y(dat.trip_id)})
+        //         })
+
+        console.log(local.drawingArea.selectAll(".stops").data())
+        var STOPS_LINE = d3.nest()
+                        .key(function(d){ return d.stop_id})
+                        .entries(local.drawingArea.selectAll(".stops").data().map(function(d){return d.values}))
+        
+        console.log(STOPS_LINE)
+        local.drawingArea.selectAll(".stop").data(STOPS_LINE).enter()
+            .append("path").attr("class","stop")
+                .attr("d", function(d){return line(d.values)})
+                .style("fill","none")
+                .style("stroke", function(d) { return stop_color(d.key)})
     }
 
     return api
@@ -291,8 +382,9 @@ var visual = (function(){
         .x(function(d) { return x(d.time); })
         .y(function(d) { return y(d.stop_postmile); });
 
-    visual.create = function(data){
+    visual.create = function(){
 
+        var data = temp.event
         d3.select("#red svg").remove();
 
         var svg = d3.select("#red").append("svg")
@@ -310,7 +402,6 @@ var visual = (function(){
         var drawingArea = svg.append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-        data = data.event
         data.forEach(function(d) {
           d.time = moment(d.ts, "YYYY-MM-DD HH:mm:ss+Z")._d
         });
@@ -395,9 +486,9 @@ var visual = (function(){
             .call(zoom);
     }
 
-    visual.tripData = function(tripData){
+    visual.show_direction = function(tripData){
         var TRIPDATA = {}
-        tripData.gtfs_trips.forEach(function(d){
+        temp.gtfs_trips.forEach(function(d){
             TRIPDATA[d.trip_id] = d
         })
         local.vehicles.selectAll(".line").each(function(d){
