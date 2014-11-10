@@ -2,6 +2,16 @@ var route_data = [];
 
 var temp = {}
 
+function get_map(array, key, value){
+    if (key == undefined) {key = "key"}
+    if (value == undefined) {value = "value"}
+    var associative_array = {}
+    array.forEach(function(d){
+        associative_array[d[key]] =d[value] 
+    })
+    return associative_array
+}
+
 $(function(){
     var format = d3.time.format("%Y-%m-%dT%X-07:00");
 
@@ -164,7 +174,7 @@ var layout = (function(){
         .orient("left");
 
     var line = d3.svg.line()
-        .interpolate("linear")
+        .interpolate("cardinal")
         .x(function(d) { return x(d.shape_dist_traveled); }) // postmile
         .y(function(d) { return y(d.shape_id); }); // 
 
@@ -228,6 +238,24 @@ var layout = (function(){
         }
     }
 
+    function get_primary_shape(gtfs_stop_shapes){
+        // returns an associative array that maps direction_id with the primary shape_id
+        // the primary shape_id is the one with the most stops during the day
+        var nest = d3.nest()
+            .key(function(d){return d.direction_id})
+            .key(function(d){return d.shape_id})
+            .rollup(function(l){return l.length})
+            .entries(gtfs_stop_shapes)
+        
+        var array = nest.map(function(direction_obj){
+                direction_obj.values = direction_obj.values.sort(function(shape_obj_a, shape_obj_b){return shape_obj_a.values-shape_obj_b.values})[0].key
+                return direction_obj
+            })
+        return get_map(array, "key", "values")
+    }
+
+
+
     api.create = function(){
 
 
@@ -246,6 +274,9 @@ var layout = (function(){
             d.direction_id = dictionary_trip_to_direction[d.trip_id]
         })
 
+        var primary_shapes = get_primary_shape(temp.gtfs_stop_times)
+        console.log(primary_shapes)
+
 
         var stop_trajectories = d3.nest()
             .key(function(d){return d.direction_id})
@@ -254,12 +285,162 @@ var layout = (function(){
             .rollup(function(d){return d[0]})
             .entries(temp.gtfs_stop_times)
         
+        var stop_shape_travel_distance = get_map(d3.nest()
+            .key(function(d){return d.stop_id})
+            .key(function(d){return d.shape_id})
+            .entries(temp.gtfs_stop_times).map(function(stop_obj){
+                stop_obj.values = get_map(stop_obj.values.map(function(shape_obj){
+                    return {key: shape_obj.key, value:shape_obj.values[0].shape_dist_traveled}
+                }))
+                return stop_obj
+            }),"key","values")
+
+
+        var trajectories = d3.nest()
+            .key(function(d){return d.direction_id})
+            .entries(temp.gtfs_stop_times)
+
+        trajectories.forEach(function(direction_obj){
+            var my_direction = direction_obj.key
+
+            direction_obj.primary_shape = primary_shapes[direction_obj.key]
+            // first i need to know which shapes exist in this direction
+            direction_obj.values = d3.nest()
+                .key(function(d){return d.shape_id})
+                // .key(function(d){return d.stop_id})
+                // .rollup(function(d){return d[0]})
+                .entries(direction_obj.values)
+
+            direction_obj.shape_ids = direction_obj.values.map(function(d){return d.key})
+
+            // now i'm going to travel through each shape finding the alignment
+            direction_obj.values.forEach(function(shape_obj){
+                shape_obj.values = d3.nest()
+                    .key(function(d){return d.stop_id})
+                    .entries(shape_obj.values).map(function(stop_obj){
+                        return stop_obj.values[0]
+                    }).sort(function(a,b){
+                        return a.shape_dist_traveled-b.shape_dist_traveled
+                    })
+
+                // now in shape_obj.values i have an array of stops, sorted by travel distance 
+                // if the shape is the primary then i will go ahead and mark it as aligned
+                if (shape_obj.key == direction_obj.primary_shape){
+                    shape_obj.values.forEach(function(stop){
+                        stop.aligned_distance_traveled = stop.shape_dist_traveled
+                        stop.true_align = true
+                        stop.vertical_display = 0
+                    })
+                    direction_obj.aligned_shapes = [shape_obj]
+                    shape_obj.aligned = true
+                }
+            })
+
+            var keep_trying_to_align = true
+            while (keep_trying_to_align) {
+                // i look for posibilities to align, if i succede at least in one i will do the alignment and
+                // update keep_trying_to_align to true
+                keep_trying_to_align = false
+                direction_obj.values = direction_obj.values.filter(function(shape_obj){return !shape_obj.aligned})
+                var vertical_display = 0
+                direction_obj.values.forEach(function(shape_obj){
+                    // see if it's posible to make an alignment
+                    var can_be_aligned = false
+                    
+                    shape_obj.values.forEach(function(stop){
+                        
+                        direction_obj.aligned_shapes.forEach(function(aligned_shape_obj){
+                            if (stop_shape_travel_distance[stop.stop_id][aligned_shape_obj.key] != undefined) {
+                                var aligned_stop = aligned_shape_obj.values.filter(function(d){return d.stop_id == stop.stop_id})[0]
+
+                                stop.aligned_distance_traveled = aligned_stop.aligned_distance_traveled
+                                can_be_aligned = true
+                                keep_trying_to_align = true
+                                stop.true_align = true
+                                stop.vertical_display = aligned_stop.vertical_display
+                            }
+                        })
+
+                    })
+                    var segment = {first: undefined, last: undefined, stops:[]}
+                    if (can_be_aligned) {
+
+                        for (var i = 0; i < shape_obj.values.length; i++) {
+
+                            if (shape_obj.values[i].true_align || i == shape_obj.values.length - 1) {
+                                segment.first = segment.last
+                                if (shape_obj.values[i].true_align ) { 
+                                    segment.last = i
+                                } else {
+                                    segment.last = undefined
+                                    segment.stops.push(i)
+                                } 
+
+                                if (segment.first == undefined && segment.last != undefined && segment.stops.length > 0) {
+                                    vertical_display++
+                                    var anchor = shape_obj.values[segment.last]
+                                    var alignment = anchor.aligned_distance_traveled - anchor.shape_dist_traveled
+                                    
+                                    segment.stops.forEach(function(stop_sequence){
+                                        shape_obj.values[stop_sequence].aligned_distance_traveled = shape_obj.values[stop_sequence].shape_dist_traveled + alignment
+                                        shape_obj.values[stop_sequence].true_align = false
+                                        shape_obj.values[stop_sequence].vertical_display = vertical_display
+                                    })
+                                } else {
+
+                                if (segment.first != undefined && segment.last == undefined && segment.stops.length > 0) {
+                                    vertical_display++
+                                    var anchor = shape_obj.values[segment.first]
+                                    var alignment = anchor.aligned_distance_traveled - anchor.shape_dist_traveled
+
+                                    segment.stops.forEach(function(stop_sequence){
+                                        shape_obj.values[stop_sequence].aligned_distance_traveled = shape_obj.values[stop_sequence].shape_dist_traveled + alignment
+                                        shape_obj.values[stop_sequence].true_align = false
+                                        shape_obj.values[stop_sequence].vertical_display = vertical_display
+                                    })
+                                } else {
+
+                                if (segment.first != undefined && segment.last != undefined && segment.stops.length > 0) {
+                                    vertical_display++
+                                    var anchor = [shape_obj.values[segment.first] , shape_obj.values[segment.last]]
+                                   
+                                    var align_scale = d3.scale.linear()
+                                        .domain(anchor.map(function(d){return d.shape_dist_traveled}))
+                                        .range(anchor.map(function(d){return d.aligned_distance_traveled}))
+
+                                    segment.stops.forEach(function(stop_sequence){
+                                        shape_obj.values[stop_sequence].aligned_distance_traveled = align_scale(shape_obj.values[stop_sequence].shape_dist_traveled)
+                                        shape_obj.values[stop_sequence].true_align = false
+                                        shape_obj.values[stop_sequence].vertical_display = vertical_display
+                                    })                                      
+                                }}}
+        
+                                segment.stops = []
+                            } else {
+                                segment.stops.push(i)
+                            }
+                            shape_obj.values[i]
+                        };
+                        direction_obj.aligned_shapes.push(shape_obj)
+                        shape_obj.aligned = true
+                    }
+                    
+                })
+                
+                //keep_trying_to_align = false // temporary just to stop
+            }
+            direction_obj.values = direction_obj.values.filter(function(shape_obj){return !shape_obj.aligned})
+            console.log(vertical_display)
+            
+            
+        })
+        console.log(trajectories)
+
 
         STOPS_DATA = d3.nest()
             .key(function(d){ return d.trip_id})
             .entries(temp.gtfs_stop_times)
 
-        console.log(stop_trajectories)
         y.domain(d3.nest()
             .key(function(d){return d.shape_id})
             .entries(temp.gtfs_stop_times)
@@ -267,14 +448,79 @@ var layout = (function(){
             )
         // yAxis.tickValues(y.domain().filter(function(d, i) { return !(i % 5); }))
 
-        d3.select("#orange svg").remove();
+        d3.selectAll("#orange svg").remove();
 
         local.svg = d3.select("#orange").append("svg")
             .attr("width", width + margin.left + margin.right)
             .attr("height", height + margin.top + margin.bottom)
             .attr("class","img-responsive center-block")
             .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
+
+        var aligned_svg = d3.select("#orange").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .attr("class","img-responsive center-block")
+            .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
+
+        var aligned_drawingArea = aligned_svg.append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
         
+        var aligned_y = d3.scale.ordinal()
+            .rangePoints([height, 0],1)
+            .domain([0,1]);
+
+        
+        var aligned_direction_g = aligned_drawingArea.selectAll(".direction").data(trajectories).enter()
+            .append("g").attr("class","direction")
+
+        var aligned_shape_g = aligned_direction_g.each(function(datum){
+
+            
+            var aligned_x = d3.scale.linear()
+                .range([0, width])
+                .domain([
+                    d3.min(datum.aligned_shapes.map(function(shape_obj){
+                        return d3.min(shape_obj.values.map(function(stop){
+                            return stop.aligned_distance_traveled
+                        }))
+                    })),
+                    d3.max(datum.aligned_shapes.map(function(shape_obj){
+                        return d3.max(shape_obj.values.map(function(stop){
+                            return stop.aligned_distance_traveled
+                        }))
+                    }))
+                ]);
+
+            var aligned_line = d3.svg.line()
+                .interpolate("linear")
+                .x(function(d) { return aligned_x(d.aligned_distance_traveled); }) // postmile
+                .y(function(d) { return aligned_y(d.direction_id) + d.vertical_display * 30; }); // 
+
+            var shape_color = d3.scale.category10().domain(datum.aligned_shapes.map(function(d){return d.key}))
+
+            var shapes_g = d3.select(this).selectAll(".shape").data(datum.aligned_shapes).enter()
+                .append("g")
+                .attr("class","shape")
+            
+            shapes_g.each(function(shape_obj){
+                d3.select(this).append("path").datum(shape_obj.values)
+                    .attr("d", aligned_line)
+                    .style("stroke", "steelblue" )
+                    .style("fill","none")
+                    .style("stroke-width",15)
+                    .attr("stroke-linecap","round")
+                    .attr("stroke-linejoin","round")
+            })
+
+            shapes_g.selectAll(".stops").data(function(d){return d.values}).enter()
+                .append("circle").attr("class","stops")
+                .attr("r", 4)
+                .attr("cx", function(d){return aligned_x(d.aligned_distance_traveled)})
+                .attr("cy", function(d){return aligned_y(d.direction_id) + d.vertical_display * 30})
+                .style("fill", "white")
+
+        }).selectAll(".shape")
+
         local.svg.append("defs").append("clipPath")
             .attr("id","drawing-area-limits")
             .append("rect")
@@ -304,7 +550,7 @@ var layout = (function(){
             .append("g").attr("class","direction")
 
         var shape_g = direction_g.each(function(datum){
-            console.log(datum)
+            
             d3.select(this).selectAll(".shape").data(datum.values).enter()
             .append("g").attr("class","shape").selectAll(".stops").data(function(d){return d.values}).enter()
                 .append("circle").attr("class","stops")
@@ -314,35 +560,11 @@ var layout = (function(){
 
         }).selectAll(".shape")
         
-        // super_test = direction_g
-
-        //console.log(shape_g.data())
-
-        // var stops_g = shape_g.selectAll(".stops").data(function(d){return d}).enter()
-        //     .append("circle")
-        //     .attr("r",2)
-        //     .attr("cx", function(d){return x(d.value)})
-        //     .attr("cy", function(d){return y(d.key)})
-
-
-
-
-        // local.drawingArea.selectAll(".trips").data(STOPS_DATA).enter()
-        //     .append("g").attr("class","trips")
-        //         .each(function(d){
-        //             d3.select(this).selectAll(".stops").data(d.values).enter()
-        //                 .append("circle")
-        //                     .attr("r",2)
-        //                     .attr("cx", function(dat){return x(dat.shape_dist_traveled)})
-        //                     .attr("cy", function(dat){return y(dat.trip_id)})
-        //         })
-
-        console.log(local.drawingArea.selectAll(".stops").data())
         var STOPS_LINE = d3.nest()
                         .key(function(d){ return d.stop_id})
                         .entries(local.drawingArea.selectAll(".stops").data().map(function(d){return d.values}))
         
-        console.log(STOPS_LINE)
+
         local.drawingArea.selectAll(".stop").data(STOPS_LINE).enter()
             .append("path").attr("class","stop")
                 .attr("d", function(d){return line(d.values)})
