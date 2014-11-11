@@ -110,11 +110,14 @@ function get_shape_direction_data(){
     }) 
 }
 
-function get_shape_direction_query_params(){
+function get_shape_direction_query_params(service_ids){
     var query_data = {};
     query_data['route_id'] = $('#routepicker').val();
     query_data['distinct'] = 'trip_id';
     query_data['select'] = ['trip_id','direction_id','block_id','shape_id'].join();
+    if (service_ids != undefined) {
+        query_data['service_id'] = service_ids.join();
+    }
     return query_data
 }
 
@@ -148,10 +151,13 @@ function get_event_data(){
 }
 
 //NOTE: This assumes that a shape id has a single set of stops associated with it
-function get_stop_shape_data_query_params(){
+function get_stop_shape_data_query_params(service_ids){
     var query_data = {};
     query_data['jointo:gtfs_trips.trip_id'] = 'trip_id';
     query_data['gtfs_trips.route_id'] = $('#routepicker').val();
+    if (service_ids != undefined) {
+        query_data['gtfs_trips.service_id'] = service_ids.join();
+    }
     query_data['sort'] = 'gtfs_trips.shape_id,ASC:gtfs_stop_times.stop_sequence',
     query_data['distinct'] = ['gtfs_trips.shape_id','gtfs_stop_times.stop_sequence','gtfs_stop_times.stop_id'].join();
     query_data['select'] = ['trip_id','stop_id','stop_sequence','shape_dist_traveled','gtfs_trips.shape_id','gtfs_trips.direction_id'].join();
