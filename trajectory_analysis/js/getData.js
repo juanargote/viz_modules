@@ -17,6 +17,82 @@ function wire_trajectory_display_button(){
     })
 }
 
+function get_current_service_id(){
+    var calendar_service_ids = [];
+    var calendar_dates_service_ids = [];
+    var calendar_dates_service_ids_ignore = [];
+    var service_ids = [];
+
+    $.when(
+        $.ajax({
+            type: "GET",
+            dataType: "json",
+            data: get_current_service_id_query_parameters_calendar(),
+            url: userDetails.agency.apiurl + "gtfs_calendar",
+            beforeSend: function(request) {
+                request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
+            },
+            success: function(data){
+                for (key in data['gtfs_calendar']){
+                    calendar_service_ids.push(data['gtfs_calendar'][key]['service_id']);
+                }
+            }
+        }),
+        $.ajax({
+            type: "GET",
+            dataType: "json",
+            data: get_current_service_id_query_parameters_calendar_dates(),
+            url: userDetails.agency.apiurl + "gtfs_calendar_dates",
+            beforeSend: function(request) {
+                request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
+            },
+            success: function(data){
+                for (key in data['gtfs_calendar_dates']){
+                    if (data['gtfs_calendar_dates'][key]['exception_type'] == 1){
+                        calendar_dates_service_ids.push(data['gtfs_calendar_dates'][key]['service_id']);
+                    } else if (data['gtfs_calendar_dates'][key]['exception_type'] == 2){
+                        calendar_dates_service_ids_ignore.push(data['gtfs_calendar_dates'][key]['service_id']);
+                    }
+                }
+            }
+        })
+        ).then(function(){
+            // Add service ids from calendars if necessary
+            for (key in calendar_service_ids){
+                if (calendar_dates_service_ids_ignore.indexOf(calendar_service_ids[key]) < 0){
+                    service_ids.push(calendar_service_ids[key])
+                }
+            }
+
+            // Add service ids from calendar dates
+            for (key in calendar_dates_service_ids){
+                service_ids.push(calendar_dates_service_ids[key])
+            }
+        });
+}
+
+function get_current_service_id_query_parameters_calendar(){
+    query_data = {};
+    var start_moment = moment.tz($("#datepicker").val(),userDetails.agency.timezone);
+    var service_date = "'" + start_moment.format("YYYYMMDD") + "'";
+    var service_day = start_moment.format("dddd").toLowerCase();
+    query_data['start_date'] = '<' + service_date;
+    query_data['end_date'] = '>' + service_date;
+    query_data[service_day] = "1";
+    query_data['select'] = "service_id";
+    return query_data 
+}
+
+function get_current_service_id_query_parameters_calendar_dates(){
+    query_data = {};
+    var start_moment = moment.tz($("#datepicker").val(),userDetails.agency.timezone);
+    var service_date = start_moment.format("YYYYMMDD");
+    query_data['date'] = service_date;
+    query_data['distinct'] = 'service_id'
+    query_data['select'] = ["service_id","exception_type"].join();
+    return query_data 
+}
+
 function get_shape_direction_data(){
     // Perform the queries       
     $.ajax({
@@ -29,7 +105,6 @@ function get_shape_direction_data(){
             request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
         },
         success: function(data){
-            console.log(data)
             visual.tripData(data);
         }
     }) 
@@ -49,7 +124,6 @@ function get_event_data_query_params(){
     var start_moment = moment.tz($("#datepicker").val(),userDetails.agency.timezone);
     var start = start_moment.format();
     var end = start_moment.add(1,'days').format()
-    var query_data = {};
     query_data['ts'] = '[' + start + ',' + end + ']';
     query_data['route_id'] = $('#routepicker').val();
     query_data['select'] = ['ts','event_type','stop_postmile','trip_id','delay','vehicle_id'].join();
