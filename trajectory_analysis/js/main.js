@@ -35,6 +35,7 @@ $(function(){
     // Wire the trajectory display button
     $("#getTrajectory").click(function(event){
         event.preventDefault();
+        layout.data()
         var start_moment = moment.tz($("#datepicker").val(),userDetails.agency.timezone);
         var start = start_moment.format();
         var end = start_moment.add(1,'days').format()
@@ -180,26 +181,28 @@ var layout = (function(){
 
     var stop_color = d3.scale.category20();
 
-    var DATA
+    // var DATA
 
-    var TRIPS_DATA
+    // var TRIPS_DATA
 
-    var STOPS_DATA
+    // var STOPS_DATA
 
     api.data = function(data){
         
 
         if (!arguments.length) {
-            return {data: DATA, trips: TRIPS_DATA}
+            // return {data: DATA, trips: TRIPS_DATA}
         } else {
-            DATA = temp.event
-            TRIPS_DATA = d3.nest()
-                .key(function(d){return d.trip_id})
-                .entries(temp.event)
+            // DATA = temp.event
+            // TRIPS_DATA = d3.nest()
+            //     .key(function(d){return d.trip_id})
+            //     .entries(temp.event)
 
             var query_data3 = {};
-            query_data3['trip_id'] = TRIPS_DATA.map(function(d){return d.key}).join();
-            query_data3['select'] = ['trip_id','stop_id','stop_sequence','shape_dist_traveled','arrival_time'].join();
+            // query_data3['trip_id'] = TRIPS_DATA.map(function(d){return d.key}).join();
+            query_data3['jointo:gtfs_trips.trip_id'] = 'trip_id';
+            query_data3['gtfs_trips.route_id'] = $('#routepicker').val();
+            query_data3['select'] = ['trip_id','stop_id','stop_sequence','shape_dist_traveled'].join();
             
             $.ajax({
                 type: "GET",
@@ -212,18 +215,25 @@ var layout = (function(){
                 },
                 success: function(data){
 
+                    data.gtfs_stop_times.forEach(function(d){
+                        d.shape_dist_traveled = d.gtfs_stop_times__shape_dist_traveled
+                        d.trip_id = d.gtfs_stop_times__trip_id
+                        d.stop_id = d.gtfs_stop_times__stop_id
+                        d.stop_sequence = d.gtfs_stop_times__stop_sequence
+                    })
+
                     temp.gtfs_stop_times = data.gtfs_stop_times
-                    x.domain(d3.extent(data.gtfs_stop_times.map(function(d){return d.shape_dist_traveled})))
+                    // x.domain(d3.extent(data.gtfs_stop_times.map(function(d){return d.shape_dist_traveled})))
 
-                    STOPS_DATA = d3.nest()
-                        .key(function(d){ return d.trip_id})
-                        .entries(data.gtfs_stop_times)
+                    // STOPS_DATA = d3.nest()
+                    //     .key(function(d){ return d.trip_id})
+                    //     .entries(data.gtfs_stop_times)
 
-                    STOPS_LINE = d3.nest()
-                        .key(function(d){ return d.stop_id})
-                        .entries(data.gtfs_stop_times)
+                    // STOPS_LINE = d3.nest()
+                    //     .key(function(d){ return d.stop_id})
+                    //     .entries(data.gtfs_stop_times)
 
-                    console.log(STOPS_LINE)
+                    // console.log(STOPS_LINE)
                     
                     
                     api.create()
@@ -258,9 +268,6 @@ var layout = (function(){
 
     api.create = function(){
 
-
-        console.log("aligning routes", temp)
-
         var dictionary_trip_to_direction = {}
         var dictionary_trip_to_shape = {}
 
@@ -275,15 +282,6 @@ var layout = (function(){
         })
 
         var primary_shapes = get_primary_shape(temp.gtfs_stop_times)
-        console.log(primary_shapes)
-
-
-        var stop_trajectories = d3.nest()
-            .key(function(d){return d.direction_id})
-            .key(function(d){return d.shape_id})
-            .key(function(d){return d.stop_id})
-            .rollup(function(d){return d[0]})
-            .entries(temp.gtfs_stop_times)
         
         var stop_shape_travel_distance = get_map(d3.nest()
             .key(function(d){return d.stop_id})
@@ -307,11 +305,9 @@ var layout = (function(){
             // first i need to know which shapes exist in this direction
             direction_obj.values = d3.nest()
                 .key(function(d){return d.shape_id})
-                // .key(function(d){return d.stop_id})
-                // .rollup(function(d){return d[0]})
                 .entries(direction_obj.values)
 
-            direction_obj.shape_ids = direction_obj.values.map(function(d){return d.key})
+            //direction_obj.shape_ids = direction_obj.values.map(function(d){return d.key})
 
             // now i'm going to travel through each shape finding the alignment
             direction_obj.values.forEach(function(shape_obj){
@@ -436,25 +432,31 @@ var layout = (function(){
         })
         console.log(trajectories)
 
+        // var stop_trajectories = d3.nest()
+        //     .key(function(d){return d.direction_id})
+        //     .key(function(d){return d.shape_id})
+        //     .key(function(d){return d.stop_id})
+        //     .rollup(function(d){return d[0]})
+        //     .entries(temp.gtfs_stop_times)
 
-        STOPS_DATA = d3.nest()
-            .key(function(d){ return d.trip_id})
-            .entries(temp.gtfs_stop_times)
+        // STOPS_DATA = d3.nest()
+        //     .key(function(d){ return d.trip_id})
+        //     .entries(temp.gtfs_stop_times)
 
-        y.domain(d3.nest()
-            .key(function(d){return d.shape_id})
-            .entries(temp.gtfs_stop_times)
-            .map(function(d){return d.key})
-            )
+        // y.domain(d3.nest()
+        //     .key(function(d){return d.shape_id})
+        //     .entries(temp.gtfs_stop_times)
+        //     .map(function(d){return d.key})
+        //     )
         // yAxis.tickValues(y.domain().filter(function(d, i) { return !(i % 5); }))
 
         d3.selectAll("#orange svg").remove();
 
-        local.svg = d3.select("#orange").append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .attr("class","img-responsive center-block")
-            .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
+        // local.svg = d3.select("#orange").append("svg")
+        //     .attr("width", width + margin.left + margin.right)
+        //     .attr("height", height + margin.top + margin.bottom)
+        //     .attr("class","img-responsive center-block")
+        //     .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
 
         var aligned_svg = d3.select("#orange").append("svg")
             .attr("width", width + margin.left + margin.right)
@@ -469,13 +471,11 @@ var layout = (function(){
             .rangePoints([height, 0],1)
             .domain([0,1]);
 
-        
         var aligned_direction_g = aligned_drawingArea.selectAll(".direction").data(trajectories).enter()
             .append("g").attr("class","direction")
 
         var aligned_shape_g = aligned_direction_g.each(function(datum){
 
-            
             var aligned_x = d3.scale.linear()
                 .range([0, width])
                 .domain([
@@ -521,55 +521,55 @@ var layout = (function(){
 
         }).selectAll(".shape")
 
-        local.svg.append("defs").append("clipPath")
-            .attr("id","drawing-area-limits")
-            .append("rect")
-                .attr("width",width)
-                .attr("height",height)
+        // local.svg.append("defs").append("clipPath")
+        //     .attr("id","drawing-area-limits")
+        //     .append("rect")
+        //         .attr("width",width)
+        //         .attr("height",height)
 
-        local.drawingArea = local.svg.append("g")
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        // local.drawingArea = local.svg.append("g")
+        //     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 
-        local.xAxis = local.drawingArea.append("g")
-            .attr("class", "x axis")
-            .attr("transform", "translate(0," + height + ")")
-            .call(xAxis);
+        // local.xAxis = local.drawingArea.append("g")
+        //     .attr("class", "x axis")
+        //     .attr("transform", "translate(0," + height + ")")
+        //     .call(xAxis);
 
-        local.yAxis = local.drawingArea.append("g")
-            .attr("class", "y axis")
-            .call(yAxis)
-          .append("text")
-            .attr("transform", "rotate(-90)")
-            .attr("y", 6)
-            .attr("dy", ".71em")
-            .style("text-anchor", "end")
-            .text("Postmile");
+        // local.yAxis = local.drawingArea.append("g")
+        //     .attr("class", "y axis")
+        //     .call(yAxis)
+        //   .append("text")
+        //     .attr("transform", "rotate(-90)")
+        //     .attr("y", 6)
+        //     .attr("dy", ".71em")
+        //     .style("text-anchor", "end")
+        //     .text("Postmile");
 
-        var direction_g = local.drawingArea.selectAll(".direction").data(stop_trajectories).enter()
-            .append("g").attr("class","direction")
+        // var direction_g = local.drawingArea.selectAll(".direction").data(stop_trajectories).enter()
+        //     .append("g").attr("class","direction")
 
-        var shape_g = direction_g.each(function(datum){
+        // var shape_g = direction_g.each(function(datum){
             
-            d3.select(this).selectAll(".shape").data(datum.values).enter()
-            .append("g").attr("class","shape").selectAll(".stops").data(function(d){return d.values}).enter()
-                .append("circle").attr("class","stops")
-                .attr("r",2)
-                .attr("cx", function(d){return x(d.values.shape_dist_traveled)})
-                .attr("cy", function(d){return y(d.values.shape_id)})
+        //     d3.select(this).selectAll(".shape").data(datum.values).enter()
+        //     .append("g").attr("class","shape").selectAll(".stops").data(function(d){return d.values}).enter()
+        //         .append("circle").attr("class","stops")
+        //         .attr("r",2)
+        //         .attr("cx", function(d){return x(d.values.shape_dist_traveled)})
+        //         .attr("cy", function(d){return y(d.values.shape_id)})
 
-        }).selectAll(".shape")
+        // }).selectAll(".shape")
         
-        var STOPS_LINE = d3.nest()
-                        .key(function(d){ return d.stop_id})
-                        .entries(local.drawingArea.selectAll(".stops").data().map(function(d){return d.values}))
+        // var STOPS_LINE = d3.nest()
+        //                 .key(function(d){ return d.stop_id})
+        //                 .entries(local.drawingArea.selectAll(".stops").data().map(function(d){return d.values}))
         
 
-        local.drawingArea.selectAll(".stop").data(STOPS_LINE).enter()
-            .append("path").attr("class","stop")
-                .attr("d", function(d){return line(d.values)})
-                .style("fill","none")
-                .style("stroke", function(d) { return stop_color(d.key)})
+        // local.drawingArea.selectAll(".stop").data(STOPS_LINE).enter()
+        //     .append("path").attr("class","stop")
+        //         .attr("d", function(d){return line(d.values)})
+        //         .style("fill","none")
+        //         .style("stroke", function(d) { return stop_color(d.key)})
     }
 
     return api
