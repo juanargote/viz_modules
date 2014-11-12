@@ -79,9 +79,9 @@ var layout = (function(){
     var api = {}
     var local = {}
 
-    var margin = {top: 10, right: 60, bottom: 30, left: 70},
+    var margin = {top: 30, right: 60, bottom: 30, left: 60},
         width = 940 - margin.left - margin.right,
-        height = 500 - margin.top - margin.bottom;
+        height = 250 - margin.top - margin.bottom;
 
     var x = d3.scale.linear()
         .range([0, width]);
@@ -108,23 +108,6 @@ var layout = (function(){
         .y(function(d) { return y(d.shape_id); }); // 
 
     var stop_color = d3.scale.category20();
-
-
-    function get_primary_shape(gtfs_stop_shapes){
-        // returns an associative array that maps direction_id with the primary shape_id
-        // the primary shape_id is the one with the most stops during the day
-        var nest = d3.nest()
-            .key(function(d){return d.direction_id})
-            .key(function(d){return d.shape_id})
-            .rollup(function(l){return l.length})
-            .entries(gtfs_stop_shapes)
-        
-        var array = nest.map(function(direction_obj){
-                direction_obj.values = direction_obj.values.sort(function(shape_obj_a, shape_obj_b){return shape_obj_a.values-shape_obj_b.values})[0].key
-                return direction_obj
-            })
-        return get_map(array, "key", "values")
-    }
 
     api.create = function(){
 
@@ -285,23 +268,46 @@ var layout = (function(){
 
         d3.selectAll("#orange svg").remove();
 
-        var aligned_svg = d3.select("#orange").append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .attr("class","img-responsive center-block")
-            .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
+        trajectories.forEach(function(direction_obj){
 
-        var aligned_drawingArea = aligned_svg.append("g")
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-        
-        var aligned_y = d3.scale.ordinal()
-            .rangePoints([height, 0],1)
-            .domain([0,1]);
+            var datum = direction_obj
 
-        var aligned_direction_g = aligned_drawingArea.selectAll(".direction").data(trajectories).enter()
-            .append("g").attr("class","direction")
+            var aligned_svg = d3.select("#orange").append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .attr("class","img-responsive center-block")
+                .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
 
-        var aligned_shape_g = aligned_direction_g.each(function(datum){
+            aligned_svg.append("rect")
+                .attr("width", width + margin.left/2 + margin.right/2)
+                .attr("height", height + margin.top/2 + margin.bottom/2)
+                .attr("x", margin.left/2)
+                .attr("y", margin.top/2)
+                .style("fill","whitesmoke")
+
+            aligned_svg.append("rect")
+                .attr("width", margin.left/2)
+                .attr("height", height + margin.top/2 + margin.bottom/2)
+                .attr("x", 0)
+                .attr("y", margin.top/2)
+                .style("fill","steelblue")
+                
+            var aligned_drawingArea = aligned_svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            aligned_svg.append("text")
+                .attr("transform","translate("+(margin.left/4)+","+(margin.top + height/2)+")rotate(-90)")
+                .attr("text-anchor","middle")
+                .attr("dy",5)
+                .text("Direction "+direction_obj.key)
+                .style("fill","white")
+
+            var background_drawingArea = aligned_drawingArea.append("g");
+            
+
+            var aligned_y = d3.scale.ordinal()
+                .rangePoints([height, 0],1)
+                .domain([direction_obj.key]);
 
             var aligned_x = d3.scale.linear()
                 .range([0, width])
@@ -325,12 +331,12 @@ var layout = (function(){
 
             var shape_color = d3.scale.category10().domain(datum.aligned_shapes.map(function(d){return d.key}))
 
-            var shapes_g = d3.select(this).selectAll(".shape").data(datum.aligned_shapes).enter()
+            var shapes_g = aligned_drawingArea.selectAll(".shape").data(datum.aligned_shapes).enter()
                 .append("g")
                 .attr("class","shape")
             
             shapes_g.each(function(shape_obj){
-                d3.select(this).append("path").datum(shape_obj.values)
+                background_drawingArea.append("path").datum(shape_obj.values)
                     .attr("d", aligned_line)
                     .style("stroke", "steelblue" )
                     .style("fill","none")
@@ -346,7 +352,28 @@ var layout = (function(){
                 .attr("cy", function(d){return aligned_y(d.direction_id) + d.vertical_display * 30})
                 .style("fill", "white")
 
-        }).selectAll(".shape")
+        })
+    }
+
+    function get_primary_shape(gtfs_stop_shapes){
+        // returns an associative array that maps direction_id with the primary shape_id
+        // the primary shape_id is the one with the most stops during the day
+
+        var nest = d3.nest()
+            .key(function(d){return d.direction_id})
+            .key(function(d){return d.shape_id})
+            //.key(function(d){return d.stop_id})
+            .entries(gtfs_stop_shapes)
+
+        
+        var array = nest.map(function(direction_obj){
+                direction_obj.values = direction_obj.values.sort(function(shape_obj_a, shape_obj_b){
+                    return shape_obj_b.values.length-shape_obj_a.values.length
+                })[0].key
+                return direction_obj
+            })
+
+        return get_map(array, "key", "values")
     }
 
     return api
