@@ -18,7 +18,6 @@ $(function(){
     // Wire the date picker
     $("#datepicker").datepicker().datepicker("setDate", new Date());
 
-    // $("#routepicker").chosen()
     // Wire the route selector
     $("#routepicker").select2({
         createSearchChoice:function(term, data) { 
@@ -35,74 +34,88 @@ $(function(){
     // Wire the trajectory display button
     $("#getTrajectory").click(function(event){
         event.preventDefault();
-        layout.data()
+        
         var start_moment = moment.tz($("#datepicker").val(),userDetails.agency.timezone);
         var start = start_moment.format();
         var end = start_moment.add(1,'days').format()
-        var query_data = {};
-        query_data['ts'] = '[' + start + ',' + end + ']';
-        query_data['route_id'] = $('#routepicker').val();
-        query_data['select'] = ['ts','event_type','stop_postmile','trip_id','delay','vehicle_id'].join();
-        // Ajax call that retrieves the agency name
-        
-        $.ajax({
-            type: "GET",
-            dataType: "json",
-            data: query_data,
-            // url: "https://vtfs.v-a.io/" + userDetails.agency.shortname + "/" + "event",
-            url: userDetails.agency.apiurl + "event",
-            beforeSend: function(request) {
-                request.setRequestHeader('Access-Control-Allow-Headers', 'apikey, Access-Control-Allow-Origin');
-                request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
-            },
-            success: function(data){
 
-                temp.event = data.event
-                visual.create()
-                
-                // second data request
-
-                var query_data2 = {};
-                query_data2['route_id'] = $('#routepicker').val();
-                query_data2['select'] = ['trip_id','direction_id','block_id','shape_id'].join();
-                
-                $.ajax({
-                    type: "GET",
-                    dataType: "json",
-                    data: query_data2,
-                    url: userDetails.agency.apiurl + "gtfs_trips",
-                    beforeSend: function(request) {
-                        request.setRequestHeader('Access-Control-Allow-Headers', 'apikey, Access-Control-Allow-Origin');
-                        request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
-                    },
-                    success: function(data){
-                        temp.gtfs_trips = data.gtfs_trips;
-                        visual.show_direction();
-                        layout.data(data.event)
-                    },
-                    complete: function(){
-                    },
-                    error: function(jqXHR,textStatus,errorThrown){
-                        console.log(jqXHR)
-                        console.log(errorThrown);
-                    }
-
-                });
+        var query = {
+            gtfs_routes_history: {
+                'select': 'route_id,route_short_name,route_long_name', 
+                'distinct':'route_id'
             },
-            complete: function(){
-                // $(".output-visual").show(1000);
-                $("#explanation").show(1000);
+            event: {
+                'ts': '[' + start + ',' + end + ']',
+                'route_id': $('#routepicker').val(),
+                'select': ['ts','event_type','stop_postmile','trip_id','delay','vehicle_id'].join()
             },
-            error: function(jqXHR,textStatus,errorThrown){
-                console.log(jqXHR)
-                console.log(errorThrown);
+            gtfs_trips: {
+                'route_id' : $('#routepicker').val(),
+                'select' : ['trip_id','direction_id','block_id','shape_id'].join() 
+            },
+            gtfs_stop_times: {
+                'jointo:gtfs_trips.trip_id': 'trip_id',
+                'gtfs_trips.route_id': $('#routepicker').val(),
+                'select': ['trip_id','stop_id','stop_sequence','shape_dist_traveled'].join(),
             }
+        }
 
-        });
+        console.log(new Date())
+        var q = queue(4);
 
+        q.defer(load_file, userDetails.agency.apiurl + "gtfs_stop_times", query.gtfs_stop_times)
+        q.defer(load_file, userDetails.agency.apiurl + "gtfs_routes_history", query.gtfs_routes_history) 
+        q.defer(load_file, userDetails.agency.apiurl + "event", query.event) 
+        q.defer(load_file, userDetails.agency.apiurl + "gtfs_trips", query.gtfs_trips) 
         
+        q.awaitAll(got_all_data);
     })
 });
+
+function load_file(url, query, cb) {
+
+    $.ajax({
+        type: "GET",
+        dataType: "json",
+        data: query,
+        url: url,
+        beforeSend: function(request) {
+            request.setRequestHeader('Access-Control-Allow-Headers', 'apikey, Access-Control-Allow-Origin');
+            request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
+        },
+        success: function(data){
+            cb(null, data)
+        },
+        error: function(jqXHR,textStatus,errorThrown){
+            cb(null, [])
+            console.log(jqXHR)
+            console.log(errorThrown);
+        }
+    });
+}
+
+function got_all_data(error, result){
+    
+    var temp_obj = {}
+    result.forEach(function(result_obj){
+        d3.keys(result_obj).forEach(function(key){
+            if (key == "gtfs_stop_times")
+            result_obj[key].forEach(function(d){
+                d.shape_dist_traveled = d.gtfs_stop_times__shape_dist_traveled
+                d.trip_id = d.gtfs_stop_times__trip_id
+                d.stop_id = d.gtfs_stop_times__stop_id
+                d.stop_sequence = d.gtfs_stop_times__stop_sequence
+            })
+            temp_obj[key] = result_obj[key]
+        })
+    })
+    temp = temp_obj
+    console.log(new Date())
+    layout.create()
+    visual.create({event:temp_obj.event})
+    visual.show_direction({gtfs_trips:temp_obj.gtfs_trips});
+    console.log(new Date())
+}
 
 function get_available_routes() {
     var human_to_route_id = {};
@@ -181,72 +194,6 @@ var layout = (function(){
 
     var stop_color = d3.scale.category20();
 
-    // var DATA
-
-    // var TRIPS_DATA
-
-    // var STOPS_DATA
-
-    api.data = function(data){
-        
-
-        if (!arguments.length) {
-            // return {data: DATA, trips: TRIPS_DATA}
-        } else {
-            // DATA = temp.event
-            // TRIPS_DATA = d3.nest()
-            //     .key(function(d){return d.trip_id})
-            //     .entries(temp.event)
-
-            var query_data3 = {};
-            // query_data3['trip_id'] = TRIPS_DATA.map(function(d){return d.key}).join();
-            query_data3['jointo:gtfs_trips.trip_id'] = 'trip_id';
-            query_data3['gtfs_trips.route_id'] = $('#routepicker').val();
-            query_data3['select'] = ['trip_id','stop_id','stop_sequence','shape_dist_traveled'].join();
-            
-            $.ajax({
-                type: "GET",
-                dataType: "json",
-                data: query_data3,
-                url: userDetails.agency.apiurl + "gtfs_stop_times",
-                beforeSend: function(request) {
-                    request.setRequestHeader('Access-Control-Allow-Headers', 'apikey, Access-Control-Allow-Origin');
-                    request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
-                },
-                success: function(data){
-
-                    data.gtfs_stop_times.forEach(function(d){
-                        d.shape_dist_traveled = d.gtfs_stop_times__shape_dist_traveled
-                        d.trip_id = d.gtfs_stop_times__trip_id
-                        d.stop_id = d.gtfs_stop_times__stop_id
-                        d.stop_sequence = d.gtfs_stop_times__stop_sequence
-                    })
-
-                    temp.gtfs_stop_times = data.gtfs_stop_times
-                    // x.domain(d3.extent(data.gtfs_stop_times.map(function(d){return d.shape_dist_traveled})))
-
-                    // STOPS_DATA = d3.nest()
-                    //     .key(function(d){ return d.trip_id})
-                    //     .entries(data.gtfs_stop_times)
-
-                    // STOPS_LINE = d3.nest()
-                    //     .key(function(d){ return d.stop_id})
-                    //     .entries(data.gtfs_stop_times)
-
-                    // console.log(STOPS_LINE)
-                    
-                    
-                    api.create()
-                },
-                complete: function(){
-                },
-                error: function(jqXHR,textStatus,errorThrown){
-                    console.log(jqXHR)
-                    console.log(errorThrown);
-                }
-            });       
-        }
-    }
 
     function get_primary_shape(gtfs_stop_shapes){
         // returns an associative array that maps direction_id with the primary shape_id
@@ -263,8 +210,6 @@ var layout = (function(){
             })
         return get_map(array, "key", "values")
     }
-
-
 
     api.create = function(){
 
@@ -293,7 +238,6 @@ var layout = (function(){
                 return stop_obj
             }),"key","values")
 
-
         var trajectories = d3.nest()
             .key(function(d){return d.direction_id})
             .entries(temp.gtfs_stop_times)
@@ -306,8 +250,6 @@ var layout = (function(){
             direction_obj.values = d3.nest()
                 .key(function(d){return d.shape_id})
                 .entries(direction_obj.values)
-
-            //direction_obj.shape_ids = direction_obj.values.map(function(d){return d.key})
 
             // now i'm going to travel through each shape finding the alignment
             direction_obj.values.forEach(function(shape_obj){
@@ -419,44 +361,14 @@ var layout = (function(){
                         };
                         direction_obj.aligned_shapes.push(shape_obj)
                         shape_obj.aligned = true
-                    }
-                    
-                })
-                
-                //keep_trying_to_align = false // temporary just to stop
+                    }  
+                })                
             }
             direction_obj.values = direction_obj.values.filter(function(shape_obj){return !shape_obj.aligned})
-            console.log(vertical_display)
-            
-            
         })
-        console.log(trajectories)
-
-        // var stop_trajectories = d3.nest()
-        //     .key(function(d){return d.direction_id})
-        //     .key(function(d){return d.shape_id})
-        //     .key(function(d){return d.stop_id})
-        //     .rollup(function(d){return d[0]})
-        //     .entries(temp.gtfs_stop_times)
-
-        // STOPS_DATA = d3.nest()
-        //     .key(function(d){ return d.trip_id})
-        //     .entries(temp.gtfs_stop_times)
-
-        // y.domain(d3.nest()
-        //     .key(function(d){return d.shape_id})
-        //     .entries(temp.gtfs_stop_times)
-        //     .map(function(d){return d.key})
-        //     )
-        // yAxis.tickValues(y.domain().filter(function(d, i) { return !(i % 5); }))
+        
 
         d3.selectAll("#orange svg").remove();
-
-        // local.svg = d3.select("#orange").append("svg")
-        //     .attr("width", width + margin.left + margin.right)
-        //     .attr("height", height + margin.top + margin.bottom)
-        //     .attr("class","img-responsive center-block")
-        //     .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
 
         var aligned_svg = d3.select("#orange").append("svg")
             .attr("width", width + margin.left + margin.right)
@@ -520,56 +432,6 @@ var layout = (function(){
                 .style("fill", "white")
 
         }).selectAll(".shape")
-
-        // local.svg.append("defs").append("clipPath")
-        //     .attr("id","drawing-area-limits")
-        //     .append("rect")
-        //         .attr("width",width)
-        //         .attr("height",height)
-
-        // local.drawingArea = local.svg.append("g")
-        //     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-
-        // local.xAxis = local.drawingArea.append("g")
-        //     .attr("class", "x axis")
-        //     .attr("transform", "translate(0," + height + ")")
-        //     .call(xAxis);
-
-        // local.yAxis = local.drawingArea.append("g")
-        //     .attr("class", "y axis")
-        //     .call(yAxis)
-        //   .append("text")
-        //     .attr("transform", "rotate(-90)")
-        //     .attr("y", 6)
-        //     .attr("dy", ".71em")
-        //     .style("text-anchor", "end")
-        //     .text("Postmile");
-
-        // var direction_g = local.drawingArea.selectAll(".direction").data(stop_trajectories).enter()
-        //     .append("g").attr("class","direction")
-
-        // var shape_g = direction_g.each(function(datum){
-            
-        //     d3.select(this).selectAll(".shape").data(datum.values).enter()
-        //     .append("g").attr("class","shape").selectAll(".stops").data(function(d){return d.values}).enter()
-        //         .append("circle").attr("class","stops")
-        //         .attr("r",2)
-        //         .attr("cx", function(d){return x(d.values.shape_dist_traveled)})
-        //         .attr("cy", function(d){return y(d.values.shape_id)})
-
-        // }).selectAll(".shape")
-        
-        // var STOPS_LINE = d3.nest()
-        //                 .key(function(d){ return d.stop_id})
-        //                 .entries(local.drawingArea.selectAll(".stops").data().map(function(d){return d.values}))
-        
-
-        // local.drawingArea.selectAll(".stop").data(STOPS_LINE).enter()
-        //     .append("path").attr("class","stop")
-        //         .attr("d", function(d){return line(d.values)})
-        //         .style("fill","none")
-        //         .style("stroke", function(d) { return stop_color(d.key)})
     }
 
     return api
