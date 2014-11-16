@@ -141,6 +141,7 @@ var layout = (function(){
             .entries(temp.gtfs_stop_times)
 
         trajectories.forEach(function(direction_obj){
+            var tree_branches = []
             var my_direction = direction_obj.key
 
             direction_obj.primary_shape = primary_shapes[direction_obj.key]
@@ -159,16 +160,22 @@ var layout = (function(){
                         return a.shape_dist_traveled-b.shape_dist_traveled
                     })
 
+                
                 // now in shape_obj.values i have an array of stops, sorted by travel distance 
                 // if the shape is the primary then i will go ahead and mark it as aligned
                 if (shape_obj.key == direction_obj.primary_shape){
                     shape_obj.values.forEach(function(stop){
                         stop.aligned_distance_traveled = stop.shape_dist_traveled
                         stop.true_align = true
-                        stop.vertical_display = 0
+                        stop.branch_id = 0
                     })
                     direction_obj.aligned_shapes = [shape_obj]
                     shape_obj.aligned = true
+
+                    tree_branches.push({
+                        branch_id: 0, 
+                        domain: d3.extent(shape_obj.values.map(function(d){return d.shape_dist_traveled})), 
+                    })
                 }
             })
 
@@ -178,7 +185,8 @@ var layout = (function(){
                 // update keep_trying_to_align to true
                 keep_trying_to_align = false
                 direction_obj.values = direction_obj.values.filter(function(shape_obj){return !shape_obj.aligned})
-                var vertical_display = 0
+                var branch_id = 0
+
                 direction_obj.values.forEach(function(shape_obj){
                     // see if it's posible to make an alignment
                     var can_be_aligned = false
@@ -193,7 +201,7 @@ var layout = (function(){
                                 can_be_aligned = true
                                 keep_trying_to_align = true
                                 stop.true_align = true
-                                stop.vertical_display = aligned_stop.vertical_display
+                                stop.branch_id = aligned_stop.branch_id
                             }
                         })
 
@@ -213,31 +221,46 @@ var layout = (function(){
                                 } 
 
                                 if (segment.first == undefined && segment.last != undefined && segment.stops.length > 0) {
-                                    vertical_display++
+                                    branch_id++
+                                    
                                     var anchor = shape_obj.values[segment.last]
                                     var alignment = anchor.aligned_distance_traveled - anchor.shape_dist_traveled
                                     
                                     segment.stops.forEach(function(stop_sequence){
                                         shape_obj.values[stop_sequence].aligned_distance_traveled = shape_obj.values[stop_sequence].shape_dist_traveled + alignment
                                         shape_obj.values[stop_sequence].true_align = false
-                                        shape_obj.values[stop_sequence].vertical_display = vertical_display
+                                        shape_obj.values[stop_sequence].branch_id = branch_id
+                                    })
+                                    tree_branches.push({
+                                        branch_id: branch_id, 
+                                        domain: [
+                                                shape_obj.values[segment.stops[0]].aligned_distance_traveled,
+                                                shape_obj.values[segment.stops[segment.stops.length-1]+1].aligned_distance_traveled 
+                                            ], 
                                     })
                                 } else {
 
                                 if (segment.first != undefined && segment.last == undefined && segment.stops.length > 0) {
-                                    vertical_display++
+                                    branch_id++
                                     var anchor = shape_obj.values[segment.first]
                                     var alignment = anchor.aligned_distance_traveled - anchor.shape_dist_traveled
 
                                     segment.stops.forEach(function(stop_sequence){
                                         shape_obj.values[stop_sequence].aligned_distance_traveled = shape_obj.values[stop_sequence].shape_dist_traveled + alignment
                                         shape_obj.values[stop_sequence].true_align = false
-                                        shape_obj.values[stop_sequence].vertical_display = vertical_display
+                                        shape_obj.values[stop_sequence].branch_id = branch_id
+                                    })
+                                    tree_branches.push({
+                                        branch_id: branch_id, 
+                                        domain: d3.extent([
+                                                shape_obj.values[segment.stops[0]-1].aligned_distance_traveled ,
+                                                shape_obj.values[segment.stops[segment.stops.length-1]].aligned_distance_traveled 
+                                            ]), 
                                     })
                                 } else {
 
                                 if (segment.first != undefined && segment.last != undefined && segment.stops.length > 0) {
-                                    vertical_display++
+                                    branch_id++
                                     var anchor = [shape_obj.values[segment.first] , shape_obj.values[segment.last]]
                                    
                                     var align_scale = d3.scale.linear()
@@ -247,8 +270,15 @@ var layout = (function(){
                                     segment.stops.forEach(function(stop_sequence){
                                         shape_obj.values[stop_sequence].aligned_distance_traveled = align_scale(shape_obj.values[stop_sequence].shape_dist_traveled)
                                         shape_obj.values[stop_sequence].true_align = false
-                                        shape_obj.values[stop_sequence].vertical_display = vertical_display
-                                    })                                      
+                                        shape_obj.values[stop_sequence].branch_id = branch_id
+                                    }) 
+                                    tree_branches.push({
+                                        branch_id: branch_id, 
+                                        domain: d3.extent([
+                                                shape_obj.values[segment.stops[0]-1].aligned_distance_traveled,
+                                                shape_obj.values[segment.stops[segment.stops.length-1]+1].aligned_distance_traveled 
+                                            ]), 
+                                    })                                   
                                 }}}
         
                                 segment.stops = []
@@ -262,6 +292,44 @@ var layout = (function(){
                     }  
                 })                
             }
+
+            var display_tree = [[tree_branches[0]]]
+            var dictionary_branch_to_vertical_display = {0:0}
+
+            tree_branches = tree_branches
+                .filter(function(branch){return branch.branch_id != 0})
+                .sort(function(a,b){return -(b.domain[1]-b.domain[0]-a.domain[1]+a.domain[0])})
+            
+            tree_branches.forEach(function(branch,i){
+                
+                var look_in_branch_group = display_tree.map(function(branch_group,j){
+                    var join_branch_to_branch_group = true
+                    branch_group.forEach(function(branch_in_the_group){
+                    
+                        if (branch_in_the_group.domain[0] < branch.domain[1] + 0 && branch_in_the_group.domain[1] > branch.domain[0] - 0) {
+                            join_branch_to_branch_group = false
+                        }
+                    })
+                    if (join_branch_to_branch_group) {
+                        return j
+                    }
+                }).filter(function(d){return d != undefined})
+                if (look_in_branch_group.length > 0) {
+                    display_tree[look_in_branch_group[0]].push(branch)
+                    dictionary_branch_to_vertical_display[branch.branch_id] = look_in_branch_group[0]
+                } else {
+                    dictionary_branch_to_vertical_display[branch.branch_id] = display_tree.length
+                    display_tree.push([branch])
+                }
+
+            })
+
+            direction_obj.aligned_shapes.forEach(function(shape_obj){
+                shape_obj.values.forEach(function(stop){
+                    stop.vertical_display = dictionary_branch_to_vertical_display[stop.branch_id]
+                })
+            })
+
             direction_obj.values = direction_obj.values.filter(function(shape_obj){return !shape_obj.aligned})
         })
         

@@ -17,6 +17,16 @@ function load_data(url, query, cb) {
             request.setRequestHeader('Access-Control-Allow-Headers', 'apikey, Access-Control-Allow-Origin');
             request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
         },
+        xhr: function () {
+            var xhr = new window.XMLHttpRequest();
+            //Download progress
+            xhr.addEventListener("progress", function (evt) {
+                d3.select(".progress.custom .progress-bar")
+                    .style("display",null)
+
+            }, false);
+            return xhr;
+        },
         success: function(data){
             cb(null, data)
         },
@@ -29,7 +39,8 @@ function load_data(url, query, cb) {
 }
 
 function got_all_data(error, result){
-    
+    d3.select(".progress.custom .progress-bar")
+                    .style("display","none")
     var temp_obj = {}
     result.forEach(function(result_obj){
         d3.keys(result_obj).forEach(function(key){

@@ -42,6 +42,13 @@ span.select2-chosen {
     margin: 5px 0 3px 5px;
 }
 
+.progress.custom {
+  height: 4px;
+  background-image: none;
+  background-color: transparent;
+  margin-bottom: 0px;
+}
+
 .axis path,
 .axis line {
   fill: none;
