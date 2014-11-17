@@ -77,7 +77,11 @@ function get_available_routes() {
 
 var layout = (function(){
     var api = {}
-    var local = {}
+    var direction_data = {}
+    var shape_data = {}
+    var dictionary_trip_to_direction = {}
+    var dictionary_trip_to_shape = {}
+
 
     var margin = {top: 30, right: 60, bottom: 30, left: 60},
         width = 940 - margin.left - margin.right,
@@ -109,10 +113,30 @@ var layout = (function(){
 
     var stop_color = d3.scale.category20();
 
-    api.create = function(){
+    api.direction = function(direction_id){
+        return direction_data[direction_id]
+    }
 
-        var dictionary_trip_to_direction = {}
-        var dictionary_trip_to_shape = {}
+    api.shape = function(shape_id){
+        if (shape_id == undefined) {
+            return shape_data
+        }
+        return shape_data[shape_id]
+    }
+
+    api.trip = function(trip_id){
+        return shape_data[dictionary_trip_to_shape[trip_id]]
+    }
+
+    api.trip_direction = function(trip_id){
+        var direction_id = dictionary_trip_to_direction[trip_id]
+        if (direction_id != undefined ) {return direction_id
+        } else {
+            return 3
+        }
+    }
+
+    api.create = function(){
 
         temp.gtfs_trips.forEach(function(d){
             dictionary_trip_to_direction[d.trip_id] = d.direction_id
@@ -288,6 +312,11 @@ var layout = (function(){
                             shape_obj.values[i]
                         };
                         direction_obj.aligned_shapes.push(shape_obj)
+                        
+                        shape_data[shape_obj.key] = d3.scale.linear()
+                            .domain(shape_obj.values.map(function(d){return d.shape_dist_traveled}))
+                            .range(shape_obj.values.map(function(d){return d.aligned_distance_traveled}))
+
                         shape_obj.aligned = true
                     }  
                 })                
@@ -324,6 +353,14 @@ var layout = (function(){
 
             })
 
+            var direction_id = direction_obj.key 
+            
+            direction_data[direction_id] = {
+                y: d3.scale.ordinal()
+                .rangePoints([height/4,3*height/4],1)
+                .domain(d3.set(d3.values(dictionary_branch_to_vertical_display)).values()),
+            }
+
             direction_obj.aligned_shapes.forEach(function(shape_obj){
                 shape_obj.values.forEach(function(stop){
                     stop.vertical_display = dictionary_branch_to_vertical_display[stop.branch_id]
@@ -337,13 +374,15 @@ var layout = (function(){
         d3.selectAll("#orange svg").remove();
 
         trajectories.forEach(function(direction_obj){
-
+            
+            var direction_id = direction_obj.key 
+            
             var datum = direction_obj
 
             var aligned_svg = d3.select("#orange").append("svg")
                 .attr("width", width + margin.left + margin.right)
                 .attr("height", height + margin.top + margin.bottom)
-                .attr("class","img-responsive center-block")
+                .attr("class","img-responsive custom center-block")
                 .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
 
             aligned_svg.append("rect")
@@ -373,11 +412,11 @@ var layout = (function(){
             var background_drawingArea = aligned_drawingArea.append("g");
             
 
-            var aligned_y = d3.scale.ordinal()
-                .rangePoints([height, 0],1)
-                .domain([direction_obj.key]);
+            // data[direction_id].y = d3.scale.ordinal()
+            //     .rangePoints([height, 0],1)
+            //     .domain([direction_obj.key]);
 
-            var aligned_x = d3.scale.linear()
+            direction_data[direction_id].x = d3.scale.linear()
                 .range([0, width])
                 .domain([
                     d3.min(datum.aligned_shapes.map(function(shape_obj){
@@ -394,8 +433,8 @@ var layout = (function(){
 
             var aligned_line = d3.svg.line()
                 .interpolate("linear")
-                .x(function(d) { return aligned_x(d.aligned_distance_traveled); }) // postmile
-                .y(function(d) { return aligned_y(d.direction_id) + d.vertical_display * 30; }); // 
+                .x(function(d) { return direction_data[direction_id].x(d.aligned_distance_traveled); }) // postmile
+                .y(function(d) { return direction_data[direction_id].y(d.vertical_display); }); // 
 
             var shape_color = d3.scale.category10().domain(datum.aligned_shapes.map(function(d){return d.key}))
 
@@ -416,11 +455,13 @@ var layout = (function(){
             shapes_g.selectAll(".stops").data(function(d){return d.values}).enter()
                 .append("circle").attr("class","stops")
                 .attr("r", 4)
-                .attr("cx", function(d){return aligned_x(d.aligned_distance_traveled)})
-                .attr("cy", function(d){return aligned_y(d.direction_id) + d.vertical_display * 30})
+                .attr("cx", function(d){return direction_data[direction_id].x(d.aligned_distance_traveled)})
+                .attr("cy", function(d){return direction_data[direction_id].y(d.vertical_display)})
                 .style("fill", "white")
 
         })
+
+        visual.create()
     }
 
     function get_primary_shape(gtfs_stop_shapes){
@@ -447,145 +488,186 @@ var layout = (function(){
     return api
 })();
 
+
+var loading = (function(){
+    var api = {}
+    api.display = function(){
+        d3.select(".progress-info")
+            .style("display","block")
+    }
+    api.hide = function(){
+        d3.select(".progress-info")
+            .style("display","none")
+    }
+    return api
+})();
+
 var visual = (function(){
-    var visual = {}
-    var local = {}
+    var api = {}
 
     var margin = {top: 10, right: 60, bottom: 30, left: 70},
         width = 940 - margin.left - margin.right,
         height = 500 - margin.top - margin.bottom;
 
-    var x = d3.time.scale()
-        .range([0, width]);
-
-    var y = d3.scale.linear()
-        .range([height, 0]);
-
     var color = d3.scale.category10();
 
-    var xAxis = d3.svg.axis()
-        .scale(x)
-        .orient("bottom");
-
-    var yAxis = d3.svg.axis()
-        .scale(y)
-        .orient("left");
-
-    var line = d3.svg.line()
-        .interpolate("basis")
-        .x(function(d) { return x(d.time); })
-        .y(function(d) { return y(d.stop_postmile); });
-
-    visual.create = function(){
+    api.create = function(){
 
         var data = temp.event
-        d3.select("#red svg").remove();
-
-        var svg = d3.select("#red").append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .attr("class","img-responsive center-block")
-            .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
-        
-        svg.append("defs").append("clipPath")
-            .attr("id","drawing-area-limits")
-            .append("rect")
-                .attr("width",width)
-                .attr("height",height)
-
-        var drawingArea = svg.append("g")
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        d3.selectAll("#red svg").remove();
 
         data.forEach(function(d) {
           d.time = moment(d.ts, "YYYY-MM-DD HH:mm:ss+Z")._d
         });
+        
 
         var nest = d3.nest()
+            .key(function(d){return layout.trip_direction(d.trip_id)})
             .key(function(d){return d.vehicle_id})
             .key(function(d){return d.trip_id})
             .entries(data)
 
-        local.dataTimeDomain = d3.extent(data, function(d) { return d.time; })
-        x.domain( local.dataTimeDomain );
-
-        y.domain( d3.extent(data, function(d) { return d.stop_postmile }) );
-
-        local.xAxis = drawingArea.append("g")
-            .attr("class", "x axis")
-            .attr("transform", "translate(0," + height + ")")
-            .call(xAxis);
-
-        local.yAxis = drawingArea.append("g")
-            .attr("class", "y axis")
-            .call(yAxis)
-          .append("text")
-            .attr("transform", "rotate(-90)")
-            .attr("y", 6)
-            .attr("dy", ".71em")
-            .style("text-anchor", "end")
-            .text("Postmile");
-
-        local.vehicles = drawingArea.selectAll(".vehicle").data(nest).enter().append("g")
-            .attr("clip-path","url(#drawing-area-limits)")
-            .attr("class", "vehicle");
-
-        local.vehicles.each(function(d){
-            d3.select(this).selectAll(".trip").data(d.values).enter().append("g")
-            .attr("class", "trip");
-        })
-
-        local.vehicles.selectAll(".trip")
-            .append("path")
-            .attr("class", "line")
-            .attr("d", function(d) { return line(d.values); });
-
-        local.vehicles.each(function(d){
-            d3.select(this).selectAll(".line").style("stroke",color(d.key));
-        })
-    
-        var zoomDraw = function(){ 
-
-            var leftBoundary = x.domain()[0].getTime() - local.dataTimeDomain[0].getTime()
-            var rightBoundary = x.domain()[1].getTime() - local.dataTimeDomain[1].getTime()
+        nest.forEach(function(direction_obj){
             
-            if (leftBoundary < 0) {
-                x.domain([x.domain()[0] - leftBoundary, x.domain()[1] - leftBoundary])
-                zoom.translate([0, zoom.translate()[1]])
-            }
+            var time_domain = d3.extent(data, function(d) { return d.time; })
+            
+            var x = d3.time.scale()
+                .range([0, width])
+                .domain( time_domain );
 
-            if (rightBoundary > 0) {
-                x.domain([x.domain()[0] - rightBoundary, x.domain()[1] - rightBoundary])
-                zoom.translate([x(local.dataTimeDomain[0]), zoom.translate()[1]])    
-            }
+            var y = d3.scale.linear()
+                .range([height, 0])
+                .domain( layout.direction(direction_obj.key).x.domain() );
 
-            local.xAxis.call(xAxis);
-            local.vehicles.selectAll(".line").attr("d",function(d) { return line(d.values); })
-        }
+            var xAxis = d3.svg.axis()
+                .scale(x)
+                .orient("bottom");
 
-        var zoom = d3.behavior.zoom()
-            .on("zoom",zoomDraw);
+            var yAxis = d3.svg.axis()
+                .scale(y)
+                .orient("left");
 
-        zoom.scaleExtent([1,Infinity]).x(x);
+            var line = d3.svg.line()
+                .interpolate("basis")
+                .x(function(d) { return x(d.time); })
+                .y(function(d) { 
+                    try {
+                        //console.log(d ,layout.trip(d.trip_id)(d.postmile))
+                        return y(layout.trip(d.trip_id)(d.stop_postmile))    
+                    } catch(err){
+                        //console.log(layout.trip(d.trip_id))
+                        return height
+                    }    
+                });
 
-        drawingArea.append('rect')
-            .attr('class', 'overlay')
-            .attr('width', width)
-            .attr('height', height)
-            .style({
-                'fill': 'none',
-                'stroke': 'none',
-                'pointer-events': 'all',
-                'cursor':'pointer',
+            var svg = d3.select("#red").append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .attr("class","img-responsive custom center-block")
+                .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
+            
+            svg.append("defs").append("clipPath")
+                .attr("id","drawing-area-limits")
+                .append("rect")
+                    .attr("width",width)
+                    .attr("height",height)
+
+            var drawingArea = svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            var dir_xAxis = drawingArea.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + height + ")")
+                .call(xAxis);
+
+            var dir_yAxis = drawingArea.append("g")
+                .attr("class", "y axis")
+                .call(yAxis)
+              .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 6)
+                .attr("dy", ".71em")
+                .style("text-anchor", "end")
+                .text("Postmile");
+
+            var dir_vehicles = drawingArea.selectAll(".vehicle").data(direction_obj.values).enter().append("g")
+                .attr("clip-path","url(#drawing-area-limits)")
+                .attr("class", "vehicle");
+
+            dir_vehicles.each(function(d){
+                d3.select(this).selectAll(".trip").data(d.values).enter().append("g")
+                .attr("class", "trip");
             })
-            .call(zoom);
+
+            dir_vehicles.selectAll(".trip").each(function(trip){ 
+                if (layout.trip(trip.key) != undefined) {
+                    d3.select(this)
+                        .append("path")
+                        .attr("class", "line")
+                        .attr("d", function(d) { return line(d.values); })
+                        .style("stroke",function (d) {return color(d.vehicle_id)});    
+                } else {
+                    console.log("trip ",trip.key," is not in the schedule and we don't know their shape") 
+                }
+                
+            })
+                
+
+            dir_vehicles.each(function(d){
+                d3.select(this).selectAll(".line");
+            })
+
+            var zoomDraw = function(){ 
+
+                var leftBoundary = x.domain()[0].getTime() - time_domain[0].getTime()
+                var rightBoundary = x.domain()[1].getTime() - time_domain[1].getTime()
+                
+                if (leftBoundary < 0) {
+                    x.domain([x.domain()[0] - leftBoundary, x.domain()[1] - leftBoundary])
+                    zoom.translate([0, zoom.translate()[1]])
+                }
+
+                if (rightBoundary > 0) {
+                    x.domain([x.domain()[0] - rightBoundary, x.domain()[1] - rightBoundary])
+                    zoom.translate([x(time_domain[0]), zoom.translate()[1]])    
+                }
+
+                dir_xAxis.call(xAxis);
+                dir_vehicles.selectAll(".line").attr("d",function(d) { return line(d.values); })
+            }
+
+            var zoom = d3.behavior.zoom()
+                .on("zoom",zoomDraw);
+
+            zoom.scaleExtent([1,Infinity]).x(x);
+
+            drawingArea.append('rect')
+                .attr('class', 'overlay')
+                .attr('width', width)
+                .attr('height', height)
+                .style({
+                    'fill': 'none',
+                    'stroke': 'none',
+                    'pointer-events': 'all',
+                    'cursor':'pointer',
+                })
+                .call(zoom);
+
+        })
+
+        
+    
+        
+
+        
     }
 
-    visual.show_direction = function(tripData){
+    api.show_direction = function(){
         var TRIPDATA = {}
         temp.gtfs_trips.forEach(function(d){
             TRIPDATA[d.trip_id] = d
         })
-        local.vehicles.selectAll(".line").each(function(d){
+        d3.select("#red").selectAll(".line").each(function(d){
             try {
                 if (TRIPDATA[d.key].direction_id != 0) {
                     d3.select(this).attr("stroke-dasharray", "5,5")
@@ -593,19 +675,15 @@ var visual = (function(){
             } catch(err) {
                 console.log(d)
                 console.log(TRIPDATA[d.key])
-
             }
-
-            
         })
     }
 
-    visual.remove = function(){
+    api.remove = function(){
         console.log("removing")
     }
 
-    visual.figure = "test"
-    return visual
+    return api
 })();
 
 

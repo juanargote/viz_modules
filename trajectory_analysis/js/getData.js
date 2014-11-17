@@ -7,6 +7,8 @@ $(function(){
 });
 
 function load_data(url, query, cb) {
+    
+    loading.display()
 
     $.ajax({
         type: "GET",
@@ -16,16 +18,6 @@ function load_data(url, query, cb) {
         beforeSend: function(request) {
             request.setRequestHeader('Access-Control-Allow-Headers', 'apikey, Access-Control-Allow-Origin');
             request.setRequestHeader('apikey', userDetails.user.apikeys[0]);
-        },
-        xhr: function () {
-            var xhr = new window.XMLHttpRequest();
-            //Download progress
-            xhr.addEventListener("progress", function (evt) {
-                d3.select(".progress.custom .progress-bar")
-                    .style("display",null)
-
-            }, false);
-            return xhr;
         },
         success: function(data){
             cb(null, data)
@@ -39,8 +31,9 @@ function load_data(url, query, cb) {
 }
 
 function got_all_data(error, result){
-    d3.select(".progress.custom .progress-bar")
-                    .style("display","none")
+    
+    loading.hide()
+
     var temp_obj = {}
     result.forEach(function(result_obj){
         d3.keys(result_obj).forEach(function(key){
@@ -57,8 +50,7 @@ function got_all_data(error, result){
     temp = temp_obj
     console.log(new Date())
     layout.create()
-    visual.create({event:temp_obj.event})
-    visual.show_direction({gtfs_trips:temp_obj.gtfs_trips});
+    visual.show_direction();
     console.log(new Date())
 }
 
