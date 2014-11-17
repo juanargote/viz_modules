@@ -524,7 +524,6 @@ var visual = (function(){
           d.time = moment(d.ts, "YYYY-MM-DD HH:mm:ss+Z")._d
         });
         
-
         var nest = d3.nest()
             .key(function(d){return layout.trip_direction(d.trip_id)})
             .key(function(d){return d.vehicle_id})
@@ -613,11 +612,6 @@ var visual = (function(){
                 }
                 
             })
-                
-
-            dir_vehicles.each(function(d){
-                d3.select(this).selectAll(".line");
-            })
 
             var zoomDraw = function(){ 
 
@@ -654,7 +648,6 @@ var visual = (function(){
                     'cursor':'pointer',
                 })
                 .call(zoom);
-
         })
 
         
