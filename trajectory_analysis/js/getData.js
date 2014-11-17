@@ -50,6 +50,7 @@ function got_all_data(error, result){
     temp = temp_obj
     console.log(new Date())
     layout.create()
+    visual.create()
     visual.show_direction();
     console.log(new Date())
 }

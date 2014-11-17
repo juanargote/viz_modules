@@ -136,6 +136,14 @@ var layout = (function(){
         }
     }
 
+    api.trip_shape = function(trip_id){
+        var shape_id = dictionary_trip_to_shape[trip_id]
+        if (shape_id != undefined ) {return shape_id
+        } else {
+            return 3
+        }
+    }
+
     api.create = function(){
 
         temp.gtfs_trips.forEach(function(d){
@@ -195,6 +203,10 @@ var layout = (function(){
                     })
                     direction_obj.aligned_shapes = [shape_obj]
                     shape_obj.aligned = true
+
+                    shape_data[shape_obj.key] = d3.scale.linear()
+                        .domain(shape_obj.values.map(function(d){return d.shape_dist_traveled}))
+                        .range(shape_obj.values.map(function(d){return d.aligned_distance_traveled}))
 
                     tree_branches.push({
                         branch_id: 0, 
@@ -309,7 +321,7 @@ var layout = (function(){
                             } else {
                                 segment.stops.push(i)
                             }
-                            shape_obj.values[i]
+                            
                         };
                         direction_obj.aligned_shapes.push(shape_obj)
                         
@@ -411,11 +423,6 @@ var layout = (function(){
 
             var background_drawingArea = aligned_drawingArea.append("g");
             
-
-            // data[direction_id].y = d3.scale.ordinal()
-            //     .rangePoints([height, 0],1)
-            //     .domain([direction_obj.key]);
-
             direction_data[direction_id].x = d3.scale.linear()
                 .range([0, width])
                 .domain([
@@ -460,8 +467,6 @@ var layout = (function(){
                 .style("fill", "white")
 
         })
-
-        visual.create()
     }
 
     function get_primary_shape(gtfs_stop_shapes){
@@ -471,7 +476,6 @@ var layout = (function(){
         var nest = d3.nest()
             .key(function(d){return d.direction_id})
             .key(function(d){return d.shape_id})
-            //.key(function(d){return d.stop_id})
             .entries(gtfs_stop_shapes)
 
         
@@ -552,10 +556,8 @@ var visual = (function(){
                 .x(function(d) { return x(d.time); })
                 .y(function(d) { 
                     try {
-                        //console.log(d ,layout.trip(d.trip_id)(d.postmile))
                         return y(layout.trip(d.trip_id)(d.stop_postmile))    
                     } catch(err){
-                        //console.log(layout.trip(d.trip_id))
                         return height
                     }    
                 });
@@ -605,7 +607,7 @@ var visual = (function(){
                         .append("path")
                         .attr("class", "line")
                         .attr("d", function(d) { return line(d.values); })
-                        .style("stroke",function (d) {return color(d.vehicle_id)});    
+                        .style("stroke",function (d) {return color(d.values[0].vehicle_id)});    
                 } else {
                     console.log("trip ",trip.key," is not in the schedule and we don't know their shape") 
                 }
