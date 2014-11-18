@@ -525,11 +525,11 @@ var visual = (function(){
                 .range([height, 0])
                 .domain( layout.direction(direction_obj.key).x.domain() );
 
-            var xAxis = d3.svg.axis()
+            var xAxis = d3.svg.axis().ticks(8)
                 .scale(x)
                 .orient("bottom");
 
-            var yAxis = d3.svg.axis()
+            var yAxis = d3.svg.axis().ticks(5)
                 .scale(y)
                 .orient("left");
 
