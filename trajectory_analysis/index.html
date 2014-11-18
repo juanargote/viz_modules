@@ -21,6 +21,7 @@
     <link rel="stylesheet" type="text/css" href="css/main.css">
   </head>
   <body>
+
     <div class="container">
     
     <nav class="navbar navbar" role="navigation">
@@ -63,28 +64,31 @@
     </div>
       
       <div class="container">
-       
-      <!-------->
-      <div id="content">
-          <ul id="tabs" class="nav nav-tabs" data-tabs="tabs">
-              <li class="active"><a href="#orange" data-toggle="tab">Route Layout</a></li>
-              <li><a href="#red" data-toggle="tab">Space-Time</a></li>
-          </ul>
-          <div class="progress-info">
-            <span class="bg-primary btn-progress">Loading...</span>
-          </div>
-          <div id="my-tab-content" class="tab-content">
-              <div class="tab-pane active" id="orange">
-                  <h3 class="text-center">Layout</h3>
+        <div id="content">
+            <ul id="tabs" class="nav nav-tabs" data-tabs="tabs">
+                <li class="active"><a href="#orange" data-toggle="tab">Route Layout</a></li>
+                <li><a href="#red" data-toggle="tab">Space-Time</a></li>
+            </ul>
+            <div class="progress-indicators">
+              <div class="progress custom">
+                <div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%;">
+                </div>
+              </div>
+              <div class="progress-info">
+                <span class="bg-primary btn-progress">Loading...</span>
+              </div>
+            </div>
+            <div id="my-tab-content" class="tab-content">
+                <div class="tab-pane active" id="orange">
+                    <h3 class="text-center">Layout</h3>
 
-              </div>
-              <div class="tab-pane" id="red">
-                  <h3 class="text-center">Trajectories</h3>
-              </div>
-              
-          </div>
-      </div>
-         
+                </div>
+                <div class="tab-pane" id="red">
+                    <h3 class="text-center">Trajectories</h3>
+                </div>
+                
+            </div>
+        </div>  
       </div> <!-- container -->
   </body>
 </html>

@@ -496,12 +496,11 @@ var layout = (function(){
 var loading = (function(){
     var api = {}
     api.display = function(){
-        d3.select(".progress-info")
-            .style("display","block")
+        $(".progress-indicators").show(200)
+
     }
     api.hide = function(){
-        d3.select(".progress-info")
-            .style("display","none")
+        $(".progress-indicators").hide(1000)
     }
     return api
 })();

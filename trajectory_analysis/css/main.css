@@ -42,11 +42,20 @@ span.select2-chosen {
     margin: 5px 0 3px 5px;
 }
 
+.progress-indicators{
+  display:none;
+}
+
 .progress.custom {
-  height: 4px;
+  height: 10px;
   background-image: none;
   background-color: transparent;
   margin-bottom: 0px;
+}
+
+.progress-info {
+display: block;
+position: relative;
 }
 
 .axis path,
@@ -62,14 +71,9 @@ span.select2-chosen {
   stroke-width: 1.5px;
 }
 
-.progress-info {
-display: none;
-position: relative;
-}
-
 .btn-progress {
   position: absolute;
-  top: -1px;
+  top: 0px;
   right: 0;
   z-index: 10;
   display: block;
