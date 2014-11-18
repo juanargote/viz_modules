@@ -512,7 +512,7 @@ var visual = (function(){
             .key(function(d){return d.trip_id})
             .entries(data)
 
-        console.log(nest)
+        nest.sort(function(a,b){return a.key - b.key});
 
         nest.forEach(function(direction_obj){
             
