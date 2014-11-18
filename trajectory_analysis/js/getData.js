@@ -33,8 +33,6 @@ function load_data(url, query, cb) {
 
 function got_all_data(error, result){
     
-    loading.hide()
-
     var temp_obj = {}
     result.forEach(function(result_obj){
         d3.keys(result_obj).forEach(function(key){
@@ -49,10 +47,9 @@ function got_all_data(error, result){
         })
     })
     temp = temp_obj
-    console.log(new Date())
     layout.create()
     visual.create()
-    console.log(new Date())
+    return loading.hide()
 }
 
 function get_current_service_id(){
