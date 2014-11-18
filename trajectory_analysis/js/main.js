@@ -654,8 +654,8 @@ var visual = (function(){
                 .call(zoom);
 
             (function plot_layout(margin){
-                var layout_width = 5*margin.left/6
-                var layout_margin_left = margin.left/6
+                var layout_width = 4*margin.left/8
+                var layout_margin_left = margin.left/4
 
                 direction_obj.aligned_shapes = layout.trajectory(direction_obj.key)
                 var direction_id = direction_obj.key 
