@@ -512,6 +512,8 @@ var visual = (function(){
             .key(function(d){return d.trip_id})
             .entries(data)
 
+        console.log(nest)
+
         nest.forEach(function(direction_obj){
             
             var time_domain = d3.extent(data, function(d) { return d.time; })

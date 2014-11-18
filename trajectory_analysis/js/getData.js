@@ -164,13 +164,10 @@ function get_trajectory_data(){
         query.gtfs_trips['service_id'] = services;
     }
 
-    console.log(new Date())
     var q = queue(4);
-
     q.defer(load_data, userDetails.agency.apiurl + "gtfs_stop_times", query.gtfs_stop_times)
     q.defer(load_data, userDetails.agency.apiurl + "event", query.events) 
     q.defer(load_data, userDetails.agency.apiurl + "gtfs_trips", query.gtfs_trips) 
-    
     q.awaitAll(got_all_data);
 }
 
