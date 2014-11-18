@@ -2,6 +2,7 @@ $(function(){
     // Wire the trajectory display button
     $("#getTrajectory").click(function(event){
         event.preventDefault();
+        loading.display()
         get_current_service_id();
     })
 });
@@ -51,7 +52,6 @@ function got_all_data(error, result){
     console.log(new Date())
     layout.create()
     visual.create()
-    visual.show_direction();
     console.log(new Date())
 }
 

@@ -81,37 +81,7 @@ var layout = (function(){
     var shape_data = {}
     var dictionary_trip_to_direction = {}
     var dictionary_trip_to_shape = {}
-
-
-    var margin = {top: 30, right: 60, bottom: 30, left: 60},
-        width = 940 - margin.left - margin.right,
-        height = 250 - margin.top - margin.bottom;
-
-    var x = d3.scale.linear()
-        .range([0, width]);
-
-    var y = d3.scale.ordinal()
-        .rangePoints([height, 0],1);
-
-    var yDirection = d3.scale.ordinal()
-        .rangePoints([height, 0],1);
-
-    var color = d3.scale.category10();
-
-    var xAxis = d3.svg.axis()
-        .scale(x)
-        .orient("bottom");
-
-    var yAxis = d3.svg.axis()
-        .scale(y)
-        .orient("left");
-
-    var line = d3.svg.line()
-        .interpolate("cardinal")
-        .x(function(d) { return x(d.shape_dist_traveled); }) // postmile
-        .y(function(d) { return y(d.shape_id); }); // 
-
-    var stop_color = d3.scale.category20();
+    var data = {}
 
     api.direction = function(direction_id){
         return direction_data[direction_id]
@@ -142,6 +112,10 @@ var layout = (function(){
         } else {
             return 3
         }
+    }
+
+    api.trajectory = function(direction_id){
+        return data.trajectories[direction_id]
     }
 
     api.create = function(){
@@ -367,11 +341,7 @@ var layout = (function(){
 
             var direction_id = direction_obj.key 
             
-            direction_data[direction_id] = {
-                y: d3.scale.ordinal()
-                .rangePoints([height/4,3*height/4],1)
-                .domain(d3.set(d3.values(dictionary_branch_to_vertical_display)).values()),
-            }
+            
 
             direction_obj.aligned_shapes.forEach(function(shape_obj){
                 shape_obj.values.forEach(function(stop){
@@ -379,14 +349,40 @@ var layout = (function(){
                 })
             })
 
+            direction_data[direction_id] = {
+                y: d3.scale.ordinal()
+                    .domain(d3.set(d3.values(dictionary_branch_to_vertical_display)).values()),
+                x: d3.scale.linear()
+                    .domain([
+                        d3.min(direction_obj.aligned_shapes.map(function(shape_obj){
+                            return d3.min(shape_obj.values.map(function(stop){
+                                return stop.aligned_distance_traveled
+                            }))
+                        })),
+                        d3.max(direction_obj.aligned_shapes.map(function(shape_obj){
+                            return d3.max(shape_obj.values.map(function(stop){
+                                return stop.aligned_distance_traveled
+                            }))
+                        }))
+                    ]),
+            }
             direction_obj.values = direction_obj.values.filter(function(shape_obj){return !shape_obj.aligned})
         })
-        
+        data.trajectories = get_map(trajectories,"key","aligned_shapes")
+        api.plot_layout(trajectories)
+    }
+
+    api.plot_layout = function(trajectories){
+
+        var margin = {top: 30, right: 60, bottom: 30, left: 60},
+            width = 940 - margin.left - margin.right,
+            height = 250 - margin.top - margin.bottom;
 
         d3.selectAll("#orange svg").remove();
 
         trajectories.forEach(function(direction_obj){
-            
+            var scale = {}
+
             var direction_id = direction_obj.key 
             
             var datum = direction_obj
@@ -423,25 +419,13 @@ var layout = (function(){
 
             var background_drawingArea = aligned_drawingArea.append("g");
             
-            direction_data[direction_id].x = d3.scale.linear()
-                .range([0, width])
-                .domain([
-                    d3.min(datum.aligned_shapes.map(function(shape_obj){
-                        return d3.min(shape_obj.values.map(function(stop){
-                            return stop.aligned_distance_traveled
-                        }))
-                    })),
-                    d3.max(datum.aligned_shapes.map(function(shape_obj){
-                        return d3.max(shape_obj.values.map(function(stop){
-                            return stop.aligned_distance_traveled
-                        }))
-                    }))
-                ]);
-
+            scale.x = api.direction(direction_id).x.copy().range([0, width])
+            scale.y = api.direction(direction_id).y.copy().rangePoints([height/4,3*height/4],1)
+            
             var aligned_line = d3.svg.line()
                 .interpolate("linear")
-                .x(function(d) { return direction_data[direction_id].x(d.aligned_distance_traveled); }) // postmile
-                .y(function(d) { return direction_data[direction_id].y(d.vertical_display); }); // 
+                .x(function(d) { return scale.x(d.aligned_distance_traveled); }) // postmile
+                .y(function(d) { return scale.y(d.vertical_display); }); // 
 
             var shape_color = d3.scale.category10().domain(datum.aligned_shapes.map(function(d){return d.key}))
 
@@ -462,8 +446,8 @@ var layout = (function(){
             shapes_g.selectAll(".stops").data(function(d){return d.values}).enter()
                 .append("circle").attr("class","stops")
                 .attr("r", 4)
-                .attr("cx", function(d){return direction_data[direction_id].x(d.aligned_distance_traveled)})
-                .attr("cy", function(d){return direction_data[direction_id].y(d.vertical_display)})
+                .attr("cx", function(d){return scale.x(d.aligned_distance_traveled)})
+                .attr("cy", function(d){return scale.y(d.vertical_display)})
                 .style("fill", "white")
 
         })
@@ -508,9 +492,9 @@ var loading = (function(){
 var visual = (function(){
     var api = {}
 
-    var margin = {top: 10, right: 60, bottom: 30, left: 70},
+    var margin = {top: 30, right: 30, bottom: 30, left: 150},
         width = 940 - margin.left - margin.right,
-        height = 500 - margin.top - margin.bottom;
+        height = 320 - margin.top - margin.bottom;
 
     var color = d3.scale.category10();
 
@@ -647,29 +631,55 @@ var visual = (function(){
                     'cursor':'pointer',
                 })
                 .call(zoom);
-        })
 
-        
-    
-        
+            (function plot_layout(){
+                var layout_width = 70
+                var layout_margin_left = 0
 
-        
-    }
+                direction_obj.aligned_shapes = layout.trajectory(direction_obj.key)
+                var direction_id = direction_obj.key 
 
-    api.show_direction = function(){
-        var TRIPDATA = {}
-        temp.gtfs_trips.forEach(function(d){
-            TRIPDATA[d.trip_id] = d
-        })
-        d3.select("#red").selectAll(".line").each(function(d){
-            try {
-                if (TRIPDATA[d.key].direction_id != 0) {
-                    d3.select(this).attr("stroke-dasharray", "5,5")
-                }    
-            } catch(err) {
-                console.log(d)
-                console.log(TRIPDATA[d.key])
-            }
+                var scale = {}
+                    
+                var aligned_drawingArea = svg.append("g")
+                    .attr("transform", "translate(" + (layout_margin_left) + "," + margin.top + ")");
+
+                var background_drawingArea = aligned_drawingArea.append("g");
+                
+
+                scale.x = layout.direction(direction_id).y.copy().rangePoints([layout_width,0],1)
+
+                scale.y = layout.direction(direction_id).x.copy().range([height,0])
+
+                var aligned_line = d3.svg.line()
+                    .interpolate("linear")
+                    .y(function(d) { return scale.y(d.aligned_distance_traveled); }) // postmile
+                    .x(function(d) { return scale.x(d.vertical_display); }); // 
+
+                var shape_color = d3.scale.category10().domain(direction_obj.aligned_shapes.map(function(d){return d.key}))
+
+                var shapes_g = aligned_drawingArea.selectAll(".shape").data(direction_obj.aligned_shapes).enter()
+                    .append("g")
+                    .attr("class","shape")
+                
+                shapes_g.each(function(shape_obj){
+                    background_drawingArea.append("path").datum(shape_obj.values)
+                        .attr("d", aligned_line)
+                        .style("stroke", "steelblue" )
+                        .style("fill","none")
+                        .style("stroke-width",8)
+                        .attr("stroke-linecap","round")
+                        .attr("stroke-linejoin","round")
+                })
+
+                shapes_g.selectAll(".stops").data(function(d){return d.values}).enter()
+                    .append("circle").attr("class","stops")
+                    .attr("r", 1.5)
+                    .attr("cx", function(d){return scale.x(d.vertical_display)})
+                    .attr("cy", function(d){return scale.y(d.aligned_distance_traveled)})
+                    .style("fill", "white")
+            })();
+            
         })
     }
 
