@@ -529,6 +529,7 @@ var visual = (function(){
                 .orient("bottom");
 
             var yAxis = d3.svg.axis().ticks(5)
+                .tickFormat(function(d){return d > 999 ? (d/1000).toFixed(1).replace(/\.0$/, '') : d})
                 .scale(y)
                 .orient("left");
 
@@ -569,7 +570,6 @@ var visual = (function(){
                 .attr("dy",5)
                 .text("Direction "+direction_obj.key)
                 .style("fill","white")
-
 
             svg.append("defs").append("clipPath")
                 .attr("id","drawing-area-limits")
