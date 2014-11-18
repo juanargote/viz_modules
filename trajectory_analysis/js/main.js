@@ -369,7 +369,6 @@ var layout = (function(){
             direction_obj.values = direction_obj.values.filter(function(shape_obj){return !shape_obj.aligned})
         })
         data.trajectories = get_map(trajectories,"key","aligned_shapes")
-        api.plot_layout(trajectories)
     }
 
     api.plot_layout = function(trajectories){
@@ -494,7 +493,7 @@ var visual = (function(){
 
     var margin = {top: 30, right: 30, bottom: 30, left: 150},
         width = 940 - margin.left - margin.right,
-        height = 320 - margin.top - margin.bottom;
+        height = 270 - margin.top - margin.bottom;
 
     var color = d3.scale.category10();
 
@@ -550,6 +549,28 @@ var visual = (function(){
                 .attr("class","img-responsive custom center-block")
                 .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
             
+            svg.append("rect")
+                .attr("width", width + 5*margin.left/6 + margin.right/2)
+                .attr("height", height + margin.top + margin.bottom)
+                .attr("x", margin.left/8)
+                .attr("y", margin.top/2)
+                .style("fill","whitesmoke")
+
+            svg.append("rect")
+                .attr("width", margin.left/6)
+                .attr("height", height + margin.top + margin.bottom)
+                .attr("x", 0)
+                .attr("y", margin.top/2)
+                .style("fill","steelblue")
+
+            svg.append("text")
+                .attr("transform","translate("+(margin.left/6/2)+","+(margin.top + height/2)+")rotate(-90)")
+                .attr("text-anchor","middle")
+                .attr("dy",5)
+                .text("Direction "+direction_obj.key)
+                .style("fill","white")
+
+
             svg.append("defs").append("clipPath")
                 .attr("id","drawing-area-limits")
                 .append("rect")
@@ -632,9 +653,9 @@ var visual = (function(){
                 })
                 .call(zoom);
 
-            (function plot_layout(){
-                var layout_width = 70
-                var layout_margin_left = 0
+            (function plot_layout(margin){
+                var layout_width = 5*margin.left/6
+                var layout_margin_left = margin.left/6
 
                 direction_obj.aligned_shapes = layout.trajectory(direction_obj.key)
                 var direction_id = direction_obj.key 
@@ -678,7 +699,7 @@ var visual = (function(){
                     .attr("cx", function(d){return scale.x(d.vertical_display)})
                     .attr("cy", function(d){return scale.y(d.aligned_distance_traveled)})
                     .style("fill", "white")
-            })();
+            })(margin);
             
         })
     }
