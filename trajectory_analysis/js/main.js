@@ -548,7 +548,7 @@ var visual = (function(){
 
             var div_header = d3.select("#red").append("div").attr("class","bs-example")
 
-            div_header.append("h3").text("Direction "+direction_obj.key).attr("class","text-primary")
+            div_header.append("h3").text("Direction "+direction_obj.key).attr("class","text-primary").style("font-weight","700")
             var div_body = d3.select("#red").append("div").attr("class","highlight")
             
             var svg = div_body.append("svg")
