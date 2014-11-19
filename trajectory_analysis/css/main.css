@@ -51,6 +51,8 @@ span.select2-chosen {
   background-image: none;
   background-color: transparent;
   margin-bottom: 0px;
+  padding: 1px;
+  border-radius: 0px;
 }
 
 .progress-info {
