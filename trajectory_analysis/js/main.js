@@ -118,6 +118,10 @@ var layout = (function(){
         return data.trajectories[direction_id]
     }
 
+    api.primary_shape = function(direction_id){
+        return data.primary_shapes[direction_id];
+    }
+
     api.create = function(){
 
         temp.gtfs_trips.forEach(function(d){
@@ -130,7 +134,7 @@ var layout = (function(){
             d.direction_id = dictionary_trip_to_direction[d.trip_id]
         })
 
-        var primary_shapes = get_primary_shape(temp.gtfs_stop_times)
+        data.primary_shapes = get_primary_shape(temp.gtfs_stop_times)
         
         var stop_shape_travel_distance = get_map(d3.nest()
             .key(function(d){return d.stop_id})
@@ -150,7 +154,7 @@ var layout = (function(){
             var tree_branches = []
             var my_direction = direction_obj.key
 
-            direction_obj.primary_shape = primary_shapes[direction_obj.key]
+            direction_obj.primary_shape = data.primary_shapes[direction_obj.key]
             // first i need to know which shapes exist in this direction
             direction_obj.values = d3.nest()
                 .key(function(d){return d.shape_id})
@@ -556,27 +560,6 @@ var visual = (function(){
                 .attr("height", height + margin.top + margin.bottom)
                 .attr("class","img-responsive custom center-block")
                 .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
-            
-            // svg.append("rect")
-            //     .attr("width", width + 5*margin.left/6 + margin.right/2)
-            //     .attr("height", height + margin.top + margin.bottom)
-            //     .attr("x", margin.left/8)
-            //     .attr("y", margin.top/2)
-            //     .style("fill","whitesmoke")
-
-            // svg.append("rect")
-            //     .attr("width", margin.left/6)
-            //     .attr("height", height + margin.top + margin.bottom)
-            //     .attr("x", 0)
-            //     .attr("y", margin.top/2)
-            //     .style("fill","steelblue")
-
-            // svg.append("text")
-            //     .attr("transform","translate("+(margin.left/6/2)+","+(margin.top + height/2)+")rotate(-90)")
-            //     .attr("text-anchor","middle")
-            //     .attr("dy",5)
-            //     .text("Direction "+direction_obj.key)
-            //     .style("fill","white")
 
             svg.append("defs").append("clipPath")
                 .attr("id","drawing-area-limits")
@@ -606,6 +589,14 @@ var visual = (function(){
                 .attr("clip-path","url(#drawing-area-limits)")
                 .attr("class", "vehicle");
 
+            var stop_postmile_focus = drawingArea.append('g').attr('id','focusG-'+direction_obj.key).style('display','none');
+
+            stop_postmile_focus.append('line')
+                .attr({
+                    'id':'focusLine-' + direction_obj.key,
+                    'class':'focusLine',
+                })
+
             dir_vehicles.each(function(d){
                 d3.select(this).selectAll(".trip").data(d.values).enter().append("g")
                 .attr("class", "trip");
@@ -621,7 +612,6 @@ var visual = (function(){
                 } else {
                     console.log("trip ",trip.key," is not in the schedule and we don't know their shape") 
                 }
-                
             })
 
             var zoomDraw = function(){ 
@@ -706,6 +696,24 @@ var visual = (function(){
                     .attr("cx", function(d){return scale.x(d.vertical_display)})
                     .attr("cy", function(d){return scale.y(d.aligned_distance_traveled)})
                     .style("fill", "white")
+                    .style("cursor",function(d){return (d.shape_id == layout.primary_shape(d.direction_id)) ? "pointer" : "auto"})
+                    .style("pointer-events",function(d){return (d.shape_id == layout.primary_shape(d.direction_id)) ? "auto" : "none"})
+                    .on('mouseout', function(d){
+                        var direction_id = d.direction_id;
+                        if (d.shape_id == layout.primary_shape(direction_id)) {
+                            d3.select('#focusG-' + direction_id).style('display','none');
+                        }
+                    })
+                    .on('mouseover', function(d){
+                        var direction_id = d.direction_id;
+                        if (d.shape_id == layout.primary_shape(direction_id)) {
+                            d3.select('#focusG-' + direction_id).style('display',null);
+                            d3.select('#focusG-' + direction_id).select('.focusLine')
+                                .attr('x1', 0).attr('y1', y(d.shape_dist_traveled))
+                                .attr('x2', width).attr('y2', y(d.shape_dist_traveled));
+                        }
+                    })
+
             })(margin);
             
         })
