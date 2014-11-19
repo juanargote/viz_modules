@@ -93,3 +93,33 @@ position: relative;
 .img-responsive.custom {
   max-height: 100%
 }
+
+.bs-example {
+  margin-right: 0;
+  margin-left: 0;
+  margin-top: 15px;
+  background-color: #fff;
+  border-color: #ddd;
+  border-width: 1px;
+  border-radius: 4px 4px 0 0;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+  border-bottom-width: 0;
+  border-style: solid;
+  position: relative;
+  padding: 10px 15px 10px;
+  margin: 15px 15px 15px;
+}
+
+.highlight {
+  margin-top: -16px;
+  margin-right: 0;
+  margin-left: 0;
+  border-width: 1px;
+  border-bottom-right-radius: 4px;
+  border-bottom-left-radius: 4px;
+  margin: -15px 15px 15px;
+  padding: 9px 14px;
+  background-color: #f7f7f9;
+  border: 1px solid #e1e1e8;
+}

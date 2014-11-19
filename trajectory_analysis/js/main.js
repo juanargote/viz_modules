@@ -500,7 +500,7 @@ var visual = (function(){
     api.create = function(){
 
         var data = temp.event
-        d3.selectAll("#red svg").remove();
+        d3.selectAll("#red div").remove();
 
         data.forEach(function(d) {
           d.time = moment(d.ts, "YYYY-MM-DD HH:mm:ss+Z")._d
@@ -546,32 +546,37 @@ var visual = (function(){
                     }    
                 });
 
-            var svg = d3.select("#red").append("svg")
+            var div_header = d3.select("#red").append("div").attr("class","bs-example")
+
+            div_header.append("h3").text("Direction "+direction_obj.key).attr("class","text-primary")
+            var div_body = d3.select("#red").append("div").attr("class","highlight")
+            
+            var svg = div_body.append("svg")
                 .attr("width", width + margin.left + margin.right)
                 .attr("height", height + margin.top + margin.bottom)
                 .attr("class","img-responsive custom center-block")
                 .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
             
-            svg.append("rect")
-                .attr("width", width + 5*margin.left/6 + margin.right/2)
-                .attr("height", height + margin.top + margin.bottom)
-                .attr("x", margin.left/8)
-                .attr("y", margin.top/2)
-                .style("fill","whitesmoke")
+            // svg.append("rect")
+            //     .attr("width", width + 5*margin.left/6 + margin.right/2)
+            //     .attr("height", height + margin.top + margin.bottom)
+            //     .attr("x", margin.left/8)
+            //     .attr("y", margin.top/2)
+            //     .style("fill","whitesmoke")
 
-            svg.append("rect")
-                .attr("width", margin.left/6)
-                .attr("height", height + margin.top + margin.bottom)
-                .attr("x", 0)
-                .attr("y", margin.top/2)
-                .style("fill","steelblue")
+            // svg.append("rect")
+            //     .attr("width", margin.left/6)
+            //     .attr("height", height + margin.top + margin.bottom)
+            //     .attr("x", 0)
+            //     .attr("y", margin.top/2)
+            //     .style("fill","steelblue")
 
-            svg.append("text")
-                .attr("transform","translate("+(margin.left/6/2)+","+(margin.top + height/2)+")rotate(-90)")
-                .attr("text-anchor","middle")
-                .attr("dy",5)
-                .text("Direction "+direction_obj.key)
-                .style("fill","white")
+            // svg.append("text")
+            //     .attr("transform","translate("+(margin.left/6/2)+","+(margin.top + height/2)+")rotate(-90)")
+            //     .attr("text-anchor","middle")
+            //     .attr("dy",5)
+            //     .text("Direction "+direction_obj.key)
+            //     .style("fill","white")
 
             svg.append("defs").append("clipPath")
                 .attr("id","drawing-area-limits")
