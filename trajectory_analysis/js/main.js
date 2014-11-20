@@ -613,6 +613,7 @@ var visual = (function(){
                         .enter().append("path")
                         .attr("fill", function(d, i) { return on_time_colors[i]; })
                         .attr("d", arc)
+                        .style("cursor","pointer")
                         .on("mouseover",function(){
                             d3.select(".ontimeTooltip").transition()
                                 .duration(300)
