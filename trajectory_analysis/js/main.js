@@ -426,6 +426,7 @@ var visual = (function(){
         var data = temp.event
 
         d3.selectAll("#red div").remove();
+        d3.selectAll(".ontimeTooltip").remove();
 
         data.forEach(function(d) {
           d.time = moment(d.ts, "YYYY-MM-DD HH:mm:ss+Z")._d
@@ -443,13 +444,18 @@ var visual = (function(){
             var early_num = d3.bisect(delay_array,earliness_lim*60000);
             var on_time_num = d3.bisect(delay_array,lateness_lim*60000) - d3.bisect(delay_array,earliness_lim*60000);
             var late_num = delay_array.length - d3.bisect(delay_array,lateness_lim*60000);
-            var on_time_array = [early_num,on_time_num,late_num];
-            on_time_dict[direction_id] = on_time_array;
+            var on_time_array = [early_num/delay_array.length,on_time_num/delay_array.length,late_num/delay_array.length];
+            on_time_dict[direction_id] = on_time_array.map(function(d){return (100*d).toFixed(0)});
         }
         console.log(on_time_dict)
         
 
         nest.sort(function(a,b){return a.key - b.key});
+
+        // Initialize the tooltip
+        d3.select("body").append("div")
+            .attr("class", "ontimeTooltip")
+            .style("opacity", 1e-6);
 
         nest.forEach(function(direction_obj){
             
@@ -606,7 +612,33 @@ var visual = (function(){
                         .data(pie(on_time_dict[direction_id]))
                         .enter().append("path")
                         .attr("fill", function(d, i) { return on_time_colors[i]; })
-                        .attr("d", arc);
+                        .attr("d", arc)
+                        .on("mouseover",function(){
+                            d3.select(".ontimeTooltip").transition()
+                                .duration(300)
+                                .style("opacity",1);
+                        })
+                        .on("mouseout",function(){
+                            d3.select(".ontimeTooltip").transition()
+                                .duration(500)
+                                .style("opacity",1e-6);
+                        })
+                        .on("mousemove",function(d,i){
+                            
+                            var prefix = "";
+                            if (i == 0){
+                                prefix = "Early: "
+                            } else if (i == 1){
+                                prefix = "On time: "
+                            } else {
+                                prefix = "Late: "
+                            }
+
+                            d3.select(".ontimeTooltip")
+                                .text(prefix + d.data + "%")
+                                .style("left", (d3.event.pageX+10) + "px")
+                                .style("top", (d3.event.pageY+10) + "px");
+                        });
                 
                 var layout_drawingArea = svg.append("g")
                     .attr("transform", "translate(" + (layout_margin_left) + "," + margin.top+ ")");

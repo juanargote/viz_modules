@@ -1,25 +1,25 @@
 @import url(http://fonts.googleapis.com/css?family=Quicksand:400,700);
 
 body {
-    font: 16px sans-serif;
-    font-family: 'Quicksand', sans-serif;
-    position: relative;
-    tab-size: 2;
-    background-color: #dddddd;
+  font: 16px sans-serif;
+  font-family: 'Quicksand', sans-serif;
+  position: relative;
+  tab-size: 2;
+  background-color: #dddddd;
 }
 
 .navbar {
-    border-radius: 0
+  border-radius: 0
 }
 
 button.navbar-toggle .icon-bar{
-    background-color: black;
+  background-color: black;
 }
 
 .select2-container .select2-choice {
-    background-color: #fff;
-    background-image:none;
-    height: 32px
+  background-color: #fff;
+  background-image:none;
+  height: 32px
 }
 
 span.select2-arrow {
@@ -31,15 +31,14 @@ span.select2-chosen {
 }
 
 .tab-pane {
-    background-color: white;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-top-style: none;
-
+  background-color: white;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-top-style: none;
 }
 
 .select2-container-multi .select2-choices .select2-search-choice{
-    margin: 5px 0 3px 5px;
+  margin: 5px 0 3px 5px;
 }
 
 .progress-indicators{
@@ -125,7 +124,20 @@ position: relative;
 }
 
 .focusLine {
-    fill: none;
-    stroke: steelblue;
-    stroke-width: 1.5px;
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.ontimeTooltip {
+  position: absolute;
+  display: inline-block;
+  text-align: center;
+  max-width: 150px;
+  font-size:15px !important;
+  background: #fff;
+  border: solid 2px #999;
+  border-radius: 8px;
+  pointer-events: none;
+  padding: 4px;
 }
