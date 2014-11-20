@@ -2,6 +2,9 @@ var route_data = [];
 
 var temp = {}
 
+var lateness_lim = 5, earliness_lim = -1;
+var on_time_colors = ["#98df8a","#1f77b4","#d62728"];
+
 function get_map(array, key, value){
     if (key == undefined) {key = "key"}
     if (value == undefined) {value = "value"}
@@ -345,8 +348,6 @@ var layout = (function(){
 
             var direction_id = direction_obj.key 
             
-            
-
             direction_obj.aligned_shapes.forEach(function(shape_obj){
                 shape_obj.values.forEach(function(stop){
                     stop.vertical_display = dictionary_branch_to_vertical_display[stop.branch_id]
@@ -373,87 +374,6 @@ var layout = (function(){
             direction_obj.values = direction_obj.values.filter(function(shape_obj){return !shape_obj.aligned})
         })
         data.trajectories = get_map(trajectories,"key","aligned_shapes")
-    }
-
-    api.plot_layout = function(trajectories){
-
-        var margin = {top: 30, right: 60, bottom: 30, left: 60},
-            width = 940 - margin.left - margin.right,
-            height = 250 - margin.top - margin.bottom;
-
-        d3.selectAll("#orange svg").remove();
-
-        trajectories.forEach(function(direction_obj){
-            var scale = {}
-
-            var direction_id = direction_obj.key 
-            
-            var datum = direction_obj
-
-            var aligned_svg = d3.select("#orange").append("svg")
-                .attr("width", width + margin.left + margin.right)
-                .attr("height", height + margin.top + margin.bottom)
-                .attr("class","img-responsive custom center-block")
-                .attr("viewBox","0 0 "+(width + margin.left + margin.right)+" "+(height + margin.top + margin.bottom))
-
-            aligned_svg.append("rect")
-                .attr("width", width + margin.left/2 + margin.right/2)
-                .attr("height", height + margin.top/2 + margin.bottom/2)
-                .attr("x", margin.left/2)
-                .attr("y", margin.top/2)
-                .style("fill","whitesmoke")
-
-            aligned_svg.append("rect")
-                .attr("width", margin.left/2)
-                .attr("height", height + margin.top/2 + margin.bottom/2)
-                .attr("x", 0)
-                .attr("y", margin.top/2)
-                .style("fill","steelblue")
-                
-            var aligned_drawingArea = aligned_svg.append("g")
-                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-            aligned_svg.append("text")
-                .attr("transform","translate("+(margin.left/4)+","+(margin.top + height/2)+")rotate(-90)")
-                .attr("text-anchor","middle")
-                .attr("dy",5)
-                .text("Direction "+direction_obj.key)
-                .style("fill","white")
-
-            var background_drawingArea = aligned_drawingArea.append("g");
-            
-            scale.x = api.direction(direction_id).x.copy().range([0, width])
-            scale.y = api.direction(direction_id).y.copy().rangePoints([height/4,3*height/4],1)
-            
-            var aligned_line = d3.svg.line()
-                .interpolate("linear")
-                .x(function(d) { return scale.x(d.aligned_distance_traveled); }) // postmile
-                .y(function(d) { return scale.y(d.vertical_display); }); // 
-
-            var shape_color = d3.scale.category10().domain(datum.aligned_shapes.map(function(d){return d.key}))
-
-            var shapes_g = aligned_drawingArea.selectAll(".shape").data(datum.aligned_shapes).enter()
-                .append("g")
-                .attr("class","shape")
-            
-            shapes_g.each(function(shape_obj){
-                background_drawingArea.append("path").datum(shape_obj.values)
-                    .attr("d", aligned_line)
-                    .style("stroke", "steelblue" )
-                    .style("fill","none")
-                    .style("stroke-width",15)
-                    .attr("stroke-linecap","round")
-                    .attr("stroke-linejoin","round")
-            })
-
-            shapes_g.selectAll(".stops").data(function(d){return d.values}).enter()
-                .append("circle").attr("class","stops")
-                .attr("r", 4)
-                .attr("cx", function(d){return scale.x(d.aligned_distance_traveled)})
-                .attr("cy", function(d){return scale.y(d.vertical_display)})
-                .style("fill", "white")
-
-        })
     }
 
     function get_primary_shape(gtfs_stop_shapes){
@@ -495,7 +415,7 @@ var loading = (function(){
 var visual = (function(){
     var api = {}
 
-    var margin = {top: 30, right: 30, bottom: 30, left: 150},
+    var margin = {top: 30, right: 30, bottom: 30, left: 260},
         width = 940 - margin.left - margin.right,
         height = 270 - margin.top - margin.bottom;
 
@@ -504,6 +424,7 @@ var visual = (function(){
     api.create = function(){
 
         var data = temp.event
+
         d3.selectAll("#red div").remove();
 
         data.forEach(function(d) {
@@ -515,6 +436,18 @@ var visual = (function(){
             .key(function(d){return d.vehicle_id})
             .key(function(d){return d.trip_id})
             .entries(data)
+
+        var on_time_dict = {}
+        for (direction_id in ['0','1']) {
+            var delay_array = data.filter(function(d){return layout.trip_direction(d.trip_id) == direction_id}).map(function(d){return d.delay}).sort(function(a,b){return a-b});
+            var early_num = d3.bisect(delay_array,earliness_lim*60000);
+            var on_time_num = d3.bisect(delay_array,lateness_lim*60000) - d3.bisect(delay_array,earliness_lim*60000);
+            var late_num = delay_array.length - d3.bisect(delay_array,lateness_lim*60000);
+            var on_time_array = [early_num,on_time_num,late_num];
+            on_time_dict[direction_id] = on_time_array;
+        }
+        console.log(on_time_dict)
+        
 
         nest.sort(function(a,b){return a.key - b.key});
 
@@ -651,18 +584,34 @@ var visual = (function(){
                 .call(zoom);
 
             (function plot_layout(margin){
-                var layout_width = 4*margin.left/8
-                var layout_margin_left = margin.left/4
+                var layout_width = 2*margin.left/8
+                var layout_margin_left = margin.left/2
+                var pie_radius = 2*margin.left/8
 
                 direction_obj.aligned_shapes = layout.trajectory(direction_obj.key)
                 var direction_id = direction_obj.key 
 
                 var scale = {}
-                    
-                var aligned_drawingArea = svg.append("g")
-                    .attr("transform", "translate(" + (layout_margin_left) + "," + margin.top + ")");
+                
+                // Drawing on-time performance donut chart    
+                var pie_drawingArea = svg.append("g")
+                    .attr("transform","translate("+pie_radius+","+(margin.top+height/2)+")");
 
-                var background_drawingArea = aligned_drawingArea.append("g");
+                var pie = d3.layout.pie().sort(null);
+                var arc = d3.svg.arc()
+                    .innerRadius(pie_radius/2)
+                    .outerRadius(pie_radius);
+
+                var path = pie_drawingArea.selectAll("path")
+                        .data(pie(on_time_dict[direction_id]))
+                        .enter().append("path")
+                        .attr("fill", function(d, i) { return on_time_colors[i]; })
+                        .attr("d", arc);
+                
+                var layout_drawingArea = svg.append("g")
+                    .attr("transform", "translate(" + (layout_margin_left) + "," + margin.top+ ")");
+
+                var background_drawingArea = layout_drawingArea.append("g");
                 
 
                 scale.x = layout.direction(direction_id).y.copy().rangePoints([layout_width,0],1)
@@ -676,7 +625,7 @@ var visual = (function(){
 
                 var shape_color = d3.scale.category10().domain(direction_obj.aligned_shapes.map(function(d){return d.key}))
 
-                var shapes_g = aligned_drawingArea.selectAll(".shape").data(direction_obj.aligned_shapes).enter()
+                var shapes_g = layout_drawingArea.selectAll(".shape").data(direction_obj.aligned_shapes).enter()
                     .append("g")
                     .attr("class","shape")
                 
