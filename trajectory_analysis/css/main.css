@@ -141,3 +141,21 @@ position: relative;
   pointer-events: none;
   padding: 4px;
 }
+
+.ui-datepicker .ui-datepicker-header{
+  padding-bottom: 0px;
+}
+
+.ui-widget-header {
+  border: 1px;
+  background: steelblue;
+}
+
+.ui-state-hover:hover {
+  background: lightgray;
+  border: 1px solid steelblue;
+}
+
+.ui-state-hover:hover span{
+  background-image: url("images/ui-icons_ffffff_256x240.png");
+}
