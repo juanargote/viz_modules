@@ -21,6 +21,14 @@
     <link rel="stylesheet" type="text/css" href="css/main.css">
   </head>
   <body>
+    <div id="fb-root"></div>
+    <script>(function(d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s); js.id = id;
+      js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));</script>
     <div class="container" style="margin-bottom:0px;">
       <nav class="navbar navbar" role="navigation" style="margin-bottom:0px;">
         <div class="container">
@@ -32,6 +40,9 @@
               <span class="icon-bar"></span>
               <span class="icon-bar"></span>
             </button>
+          </div>
+          <div class="social-share">
+
           </div>
           <!-- Collect the nav links, forms, and other content for toggling -->
           <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
@@ -65,14 +76,21 @@
           </div>
         </div>
         <div id="my-tab-content" class="tab-content">
-          <div class="tab-pane active" id="red">
-            <h1>Trajectories</h1>
-            <p>This module visualizes the vehicle trajectories of a given route. <b>Pick a route</b> you are interested in, <b>choose a date</b>, and press <b>Get Trajectories</b>. You will see:</p>
-            <ul>
-              <li>a chart with on-time performance metrics,</li>
-              <li>a schematic layout of the route,</li>
-              <li>and a time-space diagram with all the available trajectories.</li>
-            </ul>
+          <div class="tab-pane active">
+            <div class="social-share">
+              <a href="https://twitter.com/share" class="twitter-share-button" data-url="http://viz.v-a.io/demo/trajectories/" data-text="Check out this site to visualize transit data." data-via="VIAAnalytics" data-hashtags="VIZ">Tweet</a>
+              <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+              <div class="fb-like" style="position:relative;top:-4px;" data-href="https://viz.v-a.io/demo/trajectories/" data-layout="button_count" data-action="like" data-show-faces="false" data-share="true"></div>
+            </div>
+            <div id="red">
+              <h1>Trajectories</h1>
+              <p>This module visualizes the vehicle trajectories of a given route. <b>Pick a route</b> you are interested in, <b>choose a date</b>, and press <b>Get Trajectories</b>. You will see:</p>
+              <ul>
+                <li>a chart with on-time performance metrics,</li>
+                <li>a schematic layout of the route,</li>
+                <li>and a time-space diagram with all the available trajectories.</li>
+              </ul>
+            </div>
           </div>   
         </div>
       </div>  
