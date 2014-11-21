@@ -522,7 +522,7 @@ var visual = (function(){
                 .attr("y", 6)
                 .attr("dy", ".71em")
                 .style("text-anchor", "end")
-                .text("Postmile");
+                .text("Distance");
 
             var dir_vehicles = drawingArea.selectAll(".vehicle").data(direction_obj.values).enter().append("g")
                 .attr("clip-path","url(#drawing-area-limits)")
