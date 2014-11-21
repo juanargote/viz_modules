@@ -425,7 +425,7 @@ var visual = (function(){
 
         var data = temp.event
 
-        d3.selectAll("#red div").remove();
+        d3.selectAll("#red").selectAll("*").remove();
         d3.selectAll(".ontimeTooltip").remove();
 
         data.forEach(function(d) {
