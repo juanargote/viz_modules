@@ -491,21 +491,7 @@ var visual = (function(){
 
             var div_header = d3.select("#red").append("div").attr("class","bs-example")
 
-            div_header.append("h3").text("Direction "+direction_obj.key).attr("class","text-primary pull-left").style("font-weight","700")
-            
-            var dropdown = div_header.append("div").attr("class","dropdown pull-right")
-
-            dropdown.append("button").attr("class","btn btn-default dropdown-toggle")
-                .attr("type","button")
-                .attr("id","dropdownMenu1")
-                .attr("data-toggle","dropdown")
-                .attr("aria-expanded","true")
-                .html("Trajectories ")
-                .append("span").attr("class","caret")
-
-            dropdown.append("ul").attr("class","dropdown-menu").attr("role","menu").attr("aria-labelledby","dropdownMenu1")
-                .append("li").attr("role","presentation").append("a").attr("role","menuitem").attr("tabindex","-1").attr("href","#").html("Bus Assignments")
-
+            div_header.html('<ul class="nav nav-pills"><li role="presentation"><p class="text-primary" style="font-weight:700">Direction '+direction_obj.key+'</p></li><li role="presentation" class="dropdown pull-right"><a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-expanded="false">Options<span class="caret"></span></a><ul class="dropdown-menu" role="menu"><li><a href="#">Action</a></li><li><a href="#">Another action</a></li><li><a href="#">Something else here</a></li><li class="divider"></li><li><a href="#">Separated link</a></li></ul></li></ul>')
 
             var div_body = d3.select("#red").append("div").attr("class","highlight")
             
